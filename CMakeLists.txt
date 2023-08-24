@@ -14,10 +14,12 @@ find_package(Boost REQUIRED COMPONENTS container)
 message(STATUS "Boost version: ${Boost_VERSION}")
 
 # CUDA
+
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_75 --expt-relaxed-constexpr")
 
 add_executable(my_app ${CXX_SOURCES} ${CU_SOURCES})
 
+set_target_properties(my_app PROPERTIES CUDA_ARCHITECTURES 61 75 87)
 set_target_properties(my_app PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 include_directories(
