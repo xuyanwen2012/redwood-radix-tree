@@ -14,6 +14,11 @@ void PrintVector3F(const Eigen::Vector3f& vec) {
   std::cout << "(" << vec.x() << ", " << vec.y() << ", " << vec.z() << ")\n";
 }
 
+_NODISCARD bool IsLeaf(const int internel_value) {
+  // check the most significant bit, which is used as a flag for "is leaf node"
+  return internel_value >> (sizeof(int) * 8 - 1);
+}
+
 int main() {
   thread_local std::mt19937 gen(114514);  // NOLINT(cert-msc51-cpp)
   static std::uniform_real_distribution dis(0.0f, 1.0f);
@@ -88,6 +93,10 @@ int main() {
   // [Step 6.1] Allocate BH nodes
   const int num_oc_nodes = oc_node_offsets.back() + 1;
   const auto root_delta = inners[0].delta_node;  // 1
+
+  // Debug print
+  std::cout << "Num Morton Keys: " << morton_keys.size() << "\n";
+  std::cout << "Num Radix Nodes: " << num_brt_nodes << "\n";
   std::cout << "Num Octree Nodes: " << num_oc_nodes << "\n";
   std::cout << "Root delta: " << root_delta << "\n";
 
@@ -106,8 +115,9 @@ int main() {
   bh_nodes[0].cell_size = tree_range;
 
   // skipping root
+  // [Step 7] Creating unlinked BH nodes
   // https://github.com/ahmidou/ShapeExtraction/blob/master/src/Octree.cu
-  for (int i = 1; i < num_oc_nodes; ++i) {
+  for (int i = 1; i < num_brt_nodes; ++i) {
     int oct_idx = oc_node_offsets[i];
     const int n_new_nodes = edge_count[i];
     for (int j = 0; j < n_new_nodes - 1; ++j) {
@@ -142,6 +152,48 @@ int main() {
           CodeToPoint(top_node_prefix << (CODE_LEN - (3 * top_level)));
       bh_nodes[oct_idx].cell_size =
           tree_range / static_cast<float>(1 << (top_level - root_level));
+    }
+  }
+
+  // [Step 7] Linking BH nodes
+  for (int i = 0; i < num_brt_nodes; ++i) {
+    if (IsLeaf(inners[i].left)) {
+      const int leaf_idx = inners[i].left;
+      const int leaf_level = inners[leaf_idx].delta_node / 3 + 1;
+      const Code_t leaf_prefix =
+          morton_keys[leaf_idx] >> (CODE_LEN - (3 * leaf_level));
+
+      const int child_idx = leaf_prefix & 0b111;
+      // walk up the radix tree until finding a node which contributes an
+      // octnode
+      int rt_node = i;
+      while (edge_count[rt_node] == 0) {
+        rt_node = inners[rt_node].parent;
+      }
+      // the lowest octnode in the string contributed by rt_node will be the
+      // lowest index
+      int bottom_oct_idx = oc_node_offsets[rt_node];
+      bh_nodes[bottom_oct_idx].SetLeaf(leaf_idx, child_idx);
+    }
+
+    if (IsLeaf(inners[i].right)) {
+      const int leaf_idx = inners[i].left + 1;
+      const int leaf_level = inners[leaf_idx].delta_node / 3 + 1;
+      const Code_t leaf_prefix =
+          morton_keys[leaf_idx] >> (CODE_LEN - (3 * leaf_level));
+
+      const int child_idx = leaf_prefix & 0b111;
+
+      // walk up the radix tree until finding a node which contributes an
+      // octnode
+      int rt_node = i;
+      while (edge_count[rt_node] == 0) {
+        rt_node = inners[rt_node].parent;
+      }
+      // the lowest octnode in the string contributed by rt_node will be the
+      // lowest index
+      int bottom_oct_idx = oc_node_offsets[rt_node];
+      bh_nodes[bottom_oct_idx].SetLeaf(leaf_idx, child_idx);
     }
   }
 
