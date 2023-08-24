@@ -7,7 +7,6 @@
 #include <random>
 
 #include "BinaryRadixTree.hpp"
-#include "Common.hpp"
 #include "Morton.hpp"
 #include "Octree.hpp"
 
@@ -30,14 +29,9 @@ int main() {
   // [Step 1] Compute Morton Codes
   std::vector<Code_t> morton_keys;
   morton_keys.reserve(n);
-  std::transform(inputs.begin(), inputs.end(), std::back_inserter(morton_keys),
-                 [&](const auto& vec) {
-                   const auto x = vec.x();
-                   const auto y = vec.y();
-                   const auto z = vec.z();
-                   return MortonCode32(ToNBitInt(x), ToNBitInt(y),
-                                       ToNBitInt(z));
-                 });
+  std::transform(
+      inputs.begin(), inputs.end(), std::back_inserter(morton_keys),
+      [&](const auto& vec) { return PointToCode(vec.x(), vec.y(), vec.z()); });
 
   // [Step 2] Sort Morton Codes by Key
   std::sort(morton_keys.begin(), morton_keys.end());
@@ -47,7 +41,8 @@ int main() {
                     morton_keys.end());
 
   std::for_each(morton_keys.begin(), morton_keys.end(), [](const auto key) {
-    std::cout << key << "\t" << std::bitset<32>(key) << "\t" << std::endl;
+    std::cout << key << "\t" << std::bitset<CODE_LEN>(key) << "\t"
+              << CodeToPoint(key).transpose() << std::endl;
   });
 
   // [Step 5] Build Binary Radix Tree
@@ -100,26 +95,30 @@ int main() {
   std::vector<oct::OctNode> bh_nodes(num_oc_nodes);
 
   constexpr auto tree_range = 1.0f;
-  int root_level = inners[0].delta_node / 3;
-  Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (root_level * 3));
+  const int root_level = inners[0].delta_node / 3;
+  const Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (root_level * 3));
   std::cout << "root_level: " << root_level << "\n";
   std::cout << "root_prefix: " << root_prefix << " - "
-            << std::bitset<32>(root_prefix) << "\n";
+            << std::bitset<CODE_LEN>(root_prefix) << "\n";
 
+  bh_nodes[0].cornor =
+      CodeToPoint(root_prefix << (CODE_LEN - (3 * root_level)));
   bh_nodes[0].cell_size = tree_range;
 
   // skipping root
   // https://github.com/ahmidou/ShapeExtraction/blob/master/src/Octree.cu
   for (int i = 1; i < num_oc_nodes; ++i) {
     int oct_idx = oc_node_offsets[i];
-    int n_new_nodes = edge_count[i];
+    const int n_new_nodes = edge_count[i];
     for (int j = 0; j < n_new_nodes - 1; ++j) {
-      int level = inners[i].delta_node / 3 - j;
-      Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
-      int child_idx = node_prefix & 0b111;
-      int parent = oct_idx + 1;
-      bh_nodes[parent].setChild(oct_idx, child_idx);
+      const int level = inners[i].delta_node / 3 - j;
+      const Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
+      const int child_idx = node_prefix & 0b111;
+      const int parent = oct_idx + 1;
+      bh_nodes[parent].SetChild(oct_idx, child_idx);
 
+      bh_nodes[oct_idx].cornor =
+          CodeToPoint(node_prefix << (CODE_LEN - (3 * level)));
       bh_nodes[oct_idx].cell_size =
           tree_range / static_cast<float>(1 << (level - root_level));
 
@@ -131,12 +130,16 @@ int main() {
       while (edge_count[rt_parent] == 0) {
         rt_parent = inners[rt_parent].parent;
       }
-      int oct_parent = oc_node_offsets[rt_parent];
-      int top_level = inners[i].delta_node / 3 - n_new_nodes + 1;
-      Code_t top_node_prefix = morton_keys[i] >> (CODE_LEN - (3 * top_level));
-      int child_idx = top_node_prefix & 0b111;
+      const int oct_parent = oc_node_offsets[rt_parent];
+      const int top_level = inners[i].delta_node / 3 - n_new_nodes + 1;
+      const Code_t top_node_prefix =
+          morton_keys[i] >> (CODE_LEN - (3 * top_level));
+      const int child_idx = top_node_prefix & 0b111;
 
-      bh_nodes[oct_parent].setChild(oct_idx, child_idx);
+      bh_nodes[oct_parent].SetChild(oct_idx, child_idx);
+
+      bh_nodes[oct_idx].cornor =
+          CodeToPoint(top_node_prefix << (CODE_LEN - (3 * top_level)));
       bh_nodes[oct_idx].cell_size =
           tree_range / static_cast<float>(1 << (top_level - root_level));
     }
@@ -147,6 +150,7 @@ int main() {
     std::cout << "\tchild_node_mask: "
               << std::bitset<8>(bh_nodes[i].child_node_mask) << "\n";
     std::cout << "\tcell_size: " << bh_nodes[i].cell_size << "\n";
+    std::cout << "\tcornor: (" << bh_nodes[i].cornor.transpose() << ")\n";
     std::cout << "\n";
   }
 
