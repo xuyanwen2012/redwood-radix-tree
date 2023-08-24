@@ -10,6 +10,7 @@ add_executable(my_app ${CXX_SOURCES} ${CU_SOURCES})
 set_target_properties(my_app PROPERTIES CXX_STANDARD 17)
 target_include_directories(my_app PRIVATE libmorton/include)
 target_compile_options(my_app PRIVATE -Wall)
+
 target_include_directories(my_app PUBLIC include)
 
 # Add Eigen

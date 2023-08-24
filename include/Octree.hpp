@@ -52,6 +52,47 @@ struct OctNode {
   void SetLeaf(const int leaf, const int my_child_idx);
 };
 
-// OctNode MakeNode(const int root_delta, const Code_t root_prefix);
+/**
+ * @brief Count the number of Octree node under a binary radix tree node.
+ *
+ * @param edge_count: results edge count array
+ * @param inners: binary radix tree nodes
+ * @param num_brt_nodes: number of binary radix tree nodes
+ */
+void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
+                        int num_brt_nodes);
+
+/**
+ * @brief Make the unlinked octree nodes from the binary radix tree.
+ * https://github.com/ahmidou/ShapeExtraction/blob/master/src/Octree.cu
+ *
+ * @param nodes: array of preallocated octree nodes
+ * @param node_offsets: ranges of each RT node
+ * @param edge_count: number of nodes in each RT node
+ * @param morton_keys: sorted morton keys
+ * @param inners: binary radix tree nodes
+ * @param num_brt_nodes: number of binary radix tree nodes
+ * @param tree_range: range of the entire octree, default 1.0f
+ */
+void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
+               const Code_t* morton_keys, const brt::InnerNodes* inners,
+               int num_brt_nodes, float tree_range = 1.0f);
+
+/**
+ * @brief Link the octree nodes together.
+ *
+ * @param nodes: array of preallocated octree nodes
+ * @param node_offsets: ranges of each RT node
+ * @param edge_count: number of nodes in each RT node
+ * @param morton_keys: sorted morton keys
+ * @param inners: binary radix tree nodes
+ * @param num_brt_nodes: number of binary radix tree nodes
+ */
+void LinkNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
+               const Code_t* morton_keys, const brt::InnerNodes* inners,
+               int num_brt_nodes);
+
+void CheckTree(const Code_t prefix, int code_len, const OctNode* nodes,
+               int oct_idx, const Code_t* codes);
 
 }  // namespace oct
