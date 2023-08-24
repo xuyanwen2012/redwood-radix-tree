@@ -14,9 +14,14 @@ void PrintVector3F(const Eigen::Vector3f& vec) {
   std::cout << "(" << vec.x() << ", " << vec.y() << ", " << vec.z() << ")\n";
 }
 
-_NODISCARD bool IsLeaf(const int internel_value) {
+_NODISCARD bool IsLeaf(const int internal_value) {
   // check the most significant bit, which is used as a flag for "is leaf node"
-  return internel_value >> (sizeof(int) * 8 - 1);
+  return internal_value >> (sizeof(int) * 8 - 1);
+}
+
+_NODISCARD int GetLeafIndex(const int internal_value) {
+  // delete the last bit which tells if this is leaf or internal index
+  return internal_value & ~(1 << (sizeof(int) * 8 - 1));   // NOLINT(clang-diagnostic-shift-sign-overflow)
 }
 
 int main() {
@@ -55,7 +60,7 @@ int main() {
   std::vector<brt::InnerNodes> inners(num_brt_nodes);
 
   for (int i = 0; i < num_brt_nodes; ++i) {
-    brt::MyProcessInternalNode(n, morton_keys.data(), i, inners.data());
+	  MyProcessInternalNode(n, morton_keys.data(), i, inners.data());
   }
 
   for (int i = 0; i < num_brt_nodes; ++i) {
@@ -123,7 +128,7 @@ int main() {
     for (int j = 0; j < n_new_nodes - 1; ++j) {
       const int level = inners[i].delta_node / 3 - j;
       const Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
-      const int child_idx = node_prefix & 0b111;
+      const int child_idx = static_cast<int>(node_prefix & 0b111);
       const int parent = oct_idx + 1;
       bh_nodes[parent].SetChild(oct_idx, child_idx);
 
@@ -144,7 +149,7 @@ int main() {
       const int top_level = inners[i].delta_node / 3 - n_new_nodes + 1;
       const Code_t top_node_prefix =
           morton_keys[i] >> (CODE_LEN - (3 * top_level));
-      const int child_idx = top_node_prefix & 0b111;
+      const int child_idx = static_cast<int>(top_node_prefix & 0b111);
 
       bh_nodes[oct_parent].SetChild(oct_idx, child_idx);
 
@@ -158,12 +163,12 @@ int main() {
   // [Step 7] Linking BH nodes
   for (int i = 0; i < num_brt_nodes; ++i) {
     if (IsLeaf(inners[i].left)) {
-      const int leaf_idx = inners[i].left;
-      const int leaf_level = inners[leaf_idx].delta_node / 3 + 1;
+      const int leaf_idx = GetLeafIndex(inners[i].left);
+      const int leaf_level = inners[i].delta_node / 3 + 1;
       const Code_t leaf_prefix =
           morton_keys[leaf_idx] >> (CODE_LEN - (3 * leaf_level));
 
-      const int child_idx = leaf_prefix & 0b111;
+      const int child_idx = static_cast<int>(leaf_prefix & 0b111);
       // walk up the radix tree until finding a node which contributes an
       // octnode
       int rt_node = i;
@@ -172,17 +177,17 @@ int main() {
       }
       // the lowest octnode in the string contributed by rt_node will be the
       // lowest index
-      int bottom_oct_idx = oc_node_offsets[rt_node];
+      const int bottom_oct_idx = oc_node_offsets[rt_node];
       bh_nodes[bottom_oct_idx].SetLeaf(leaf_idx, child_idx);
     }
 
     if (IsLeaf(inners[i].right)) {
-      const int leaf_idx = inners[i].left + 1;
-      const int leaf_level = inners[leaf_idx].delta_node / 3 + 1;
+      const int leaf_idx = GetLeafIndex(inners[i].left) + 1;
+      const int leaf_level = inners[i].delta_node / 3 + 1;
       const Code_t leaf_prefix =
           morton_keys[leaf_idx] >> (CODE_LEN - (3 * leaf_level));
 
-      const int child_idx = leaf_prefix & 0b111;
+      const int child_idx = static_cast<int>(leaf_prefix & 0b111);
 
       // walk up the radix tree until finding a node which contributes an
       // octnode
@@ -192,7 +197,7 @@ int main() {
       }
       // the lowest octnode in the string contributed by rt_node will be the
       // lowest index
-      int bottom_oct_idx = oc_node_offsets[rt_node];
+      const int bottom_oct_idx = oc_node_offsets[rt_node];
       bh_nodes[bottom_oct_idx].SetLeaf(leaf_idx, child_idx);
     }
   }
