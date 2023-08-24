@@ -21,7 +21,9 @@ _NODISCARD bool IsLeaf(const int internal_value) {
 
 _NODISCARD int GetLeafIndex(const int internal_value) {
   // delete the last bit which tells if this is leaf or internal index
-  return internal_value & ~(1 << (sizeof(int) * 8 - 1));   // NOLINT(clang-diagnostic-shift-sign-overflow)
+  return internal_value &
+         ~(1 << (sizeof(int) * 8 -
+                 1));  // NOLINT(clang-diagnostic-shift-sign-overflow)
 }
 
 int main() {
@@ -60,7 +62,7 @@ int main() {
   std::vector<brt::InnerNodes> inners(num_brt_nodes);
 
   for (int i = 0; i < num_brt_nodes; ++i) {
-	  MyProcessInternalNode(n, morton_keys.data(), i, inners.data());
+    MyProcessInternalNode(n, morton_keys.data(), i, inners.data());
   }
 
   for (int i = 0; i < num_brt_nodes; ++i) {
@@ -206,6 +208,15 @@ int main() {
     std::cout << "OctNode " << i << "\n";
     std::cout << "\tchild_node_mask: "
               << std::bitset<8>(bh_nodes[i].child_node_mask) << "\n";
+    std::cout << "\tchild_leaf_mask: "
+              << std::bitset<8>(bh_nodes[i].child_leaf_mask) << "\n";
+
+    std::cout << "\tchild : [" << bh_nodes[i].children[0];
+    for (int j = 1; j < 8; ++j) {
+      std::cout << ", " << bh_nodes[i].children[j];
+    }
+    std::cout << "]\n";
+
     std::cout << "\tcell_size: " << bh_nodes[i].cell_size << "\n";
     std::cout << "\tcornor: (" << bh_nodes[i].cornor.transpose() << ")\n";
     std::cout << "\n";
