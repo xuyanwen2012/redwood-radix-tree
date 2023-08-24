@@ -111,10 +111,10 @@ int main() {
     int oct_idx = oc_node_offsets[i];
     const int n_new_nodes = edge_count[i];
     for (int j = 0; j < n_new_nodes - 1; ++j) {
-	    const int level = inners[i].delta_node / 3 - j;
-	    const Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
-	    const int child_idx = node_prefix & 0b111;
-	    const int parent = oct_idx + 1;
+      const int level = inners[i].delta_node / 3 - j;
+      const Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
+      const int child_idx = node_prefix & 0b111;
+      const int parent = oct_idx + 1;
       bh_nodes[parent].SetChild(oct_idx, child_idx);
 
       bh_nodes[oct_idx].cornor =
@@ -132,7 +132,8 @@ int main() {
       }
       const int oct_parent = oc_node_offsets[rt_parent];
       const int top_level = inners[i].delta_node / 3 - n_new_nodes + 1;
-      const Code_t top_node_prefix = morton_keys[i] >> (CODE_LEN - (3 * top_level));
+      const Code_t top_node_prefix =
+          morton_keys[i] >> (CODE_LEN - (3 * top_level));
       const int child_idx = top_node_prefix & 0b111;
 
       bh_nodes[oct_parent].SetChild(oct_idx, child_idx);

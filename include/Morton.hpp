@@ -28,8 +28,11 @@ _NODISCARD inline Eigen::Vector3f CodeToPoint(const Code_t code,
   constexpr uint32_t bitscale = 0xFFFFFFFFu >> (32 - (CODE_LEN / 3));  // 1024
   uint_fast16_t dec_raw_x, dec_raw_y, dec_raw_z;
   libmorton::morton3D_32_decode(code, dec_raw_x, dec_raw_y, dec_raw_z);
-  const float dec_x = (static_cast<float>(dec_raw_x) / bitscale) * range + min_coord;
-  const float dec_y = (static_cast<float>(dec_raw_y) / bitscale) * range + min_coord;
-  const float dec_z = (static_cast<float>(dec_raw_z) / bitscale) * range + min_coord;
+  const float dec_x =
+      (static_cast<float>(dec_raw_x) / bitscale) * range + min_coord;
+  const float dec_y =
+      (static_cast<float>(dec_raw_y) / bitscale) * range + min_coord;
+  const float dec_z =
+      (static_cast<float>(dec_raw_z) / bitscale) * range + min_coord;
   return {dec_x, dec_y, dec_z};
 }
