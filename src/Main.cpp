@@ -99,15 +99,17 @@ int main() {
   // setup initial values of octree node objects
   std::vector<oct::OctNode> bh_nodes(num_oc_nodes);
 
+  constexpr auto tree_range = 1.0f;
   int root_level = inners[0].delta_node / 3;
   Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (root_level * 3));
   std::cout << "root_level: " << root_level << "\n";
   std::cout << "root_prefix: " << root_prefix << " - "
             << std::bitset<32>(root_prefix) << "\n";
 
-  // bh_nodes[0].body.pos = Eigen::Vector3f(0.5f, 0.5f, 0.5f);
+  bh_nodes[0].cell_size = tree_range;
 
   // skipping root
+  // https://github.com/ahmidou/ShapeExtraction/blob/master/src/Octree.cu
   for (int i = 1; i < num_oc_nodes; ++i) {
     int oct_idx = oc_node_offsets[i];
     int n_new_nodes = edge_count[i];
@@ -117,6 +119,10 @@ int main() {
       int child_idx = node_prefix & 0b111;
       int parent = oct_idx + 1;
       bh_nodes[parent].setChild(oct_idx, child_idx);
+
+      bh_nodes[oct_idx].cell_size =
+          tree_range / static_cast<float>(1 << (level - root_level));
+
       oct_idx = parent;
     }
 
@@ -131,6 +137,8 @@ int main() {
       int child_idx = top_node_prefix & 0b111;
 
       bh_nodes[oct_parent].setChild(oct_idx, child_idx);
+      bh_nodes[oct_idx].cell_size =
+          tree_range / static_cast<float>(1 << (top_level - root_level));
     }
   }
 
@@ -138,6 +146,7 @@ int main() {
     std::cout << "OctNode " << i << "\n";
     std::cout << "\tchild_node_mask: "
               << std::bitset<8>(bh_nodes[i].child_node_mask) << "\n";
+    std::cout << "\tcell_size: " << bh_nodes[i].cell_size << "\n";
     std::cout << "\n";
   }
 

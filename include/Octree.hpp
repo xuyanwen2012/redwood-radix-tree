@@ -12,13 +12,15 @@ struct Body {
 };
 
 struct OctNode {
+  // Payload
   Body body;
 
-  // TODO: cell_size (bounding box size)
-  // TODO: Center of mass
+  Eigen::Vector3f cornor;
+  float cell_size;
 
   // TODO: This is overkill number of pointers
   int children[8];
+
   /**
    * @brief For bit position i (from the right): If 1, children[i] is the index
    * of a child octree node. If 0, the ith child is either absent, or
