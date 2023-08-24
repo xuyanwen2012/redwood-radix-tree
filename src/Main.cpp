@@ -7,6 +7,7 @@
 #include <numeric>
 #include <random>
 
+#include "BinaryRadixTree.hpp"
 #include "Common.hpp"
 #include "Morton.hpp"
 
@@ -24,7 +25,7 @@ int main() {
   std::generate(inputs.begin(), inputs.end(),
                 [&] { return Eigen::Vector3f(dis(gen), dis(gen), dis(gen)); });
 
-  std::for_each(inputs.begin(), inputs.end(), PrintVector3F);
+  // std::for_each(inputs.begin(), inputs.end(), PrintVector3F);
 
   // [Step 1] Compute Morton Codes
   std::vector<Code_t> morton_keys;
@@ -48,6 +49,14 @@ int main() {
   std::for_each(morton_keys.begin(), morton_keys.end(), [](const auto key) {
     std::cout << key << "\t" << std::bitset<32>(key) << "\t" << std::endl;
   });
+
+  // [Step 5] Build Binary Radix Tree
+  constexpr auto num_brt_nodes = n - 1;
+  std::vector<brt::InnerNodes> inners(num_brt_nodes);
+
+  for (int i = 0; i < num_brt_nodes; ++i) {
+    brt::MyProcessInternalNode(n, morton_keys.data(), i, inners.data());
+  }
 
   return EXIT_SUCCESS;
 }
