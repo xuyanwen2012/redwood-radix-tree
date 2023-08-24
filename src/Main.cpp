@@ -65,19 +65,18 @@ int main() {
 
   // [Step 6] Count edges
   std::vector<int> edge_count(num_brt_nodes);
+  // Copy a "1" to the first element to account for the root
+  edge_count[0] = 1;
   oct::CalculateEdgeCount(edge_count.data(), inners.data(), num_brt_nodes);
 
   // [Step 6.1] Prefix sum
-  std::vector<int> oc_node_offsets(num_brt_nodes);
+  std::vector<int> oc_node_offsets(num_brt_nodes + 1);
   std::partial_sum(edge_count.begin(), edge_count.end(),
-                   oc_node_offsets.begin());
-
-  // for (int i = 0; i < num_brt_nodes; ++i) {
-  //   std::cout << "[debug]\t" << oc_node_offsets[i] << std::endl;
-  // }
+                   oc_node_offsets.begin() + 1);
+  oc_node_offsets[0] = 0;
 
   // [Step 6.2] Allocate BH nodes
-  const int num_oc_nodes = oc_node_offsets.back() + 1;
+  const int num_oc_nodes = oc_node_offsets.back();
   const int root_level = inners[0].delta_node / 3;
   Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (3 * root_level));
   std::vector<oct::OctNode> bh_nodes(num_oc_nodes);

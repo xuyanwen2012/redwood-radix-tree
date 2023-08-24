@@ -35,8 +35,6 @@ _NODISCARD int GetLeafIndex(const int internal_value) {
 
 void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
                         const int num_brt_nodes) {
-  // Copy a "1" to the first element to account for the root
-  edge_count[0] = 1;
   // root has no parent, so don't do for index 0
   for (int i = 1; i < num_brt_nodes; ++i) {
     const int my_depth = inners[i].delta_node / 3;
