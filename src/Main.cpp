@@ -20,7 +20,7 @@ int main() {
   static std::uniform_real_distribution dis(0.0f, 1.0f);
 
   // Prepare Inputs
-  constexpr int n = 64;
+  constexpr int n = 128;
   std::vector<Eigen::Vector3f> inputs(n);
   std::generate(inputs.begin(), inputs.end(),
                 [&] { return Eigen::Vector3f(dis(gen), dis(gen), dis(gen)); });
@@ -67,6 +67,30 @@ int main() {
     std::cout << "\tparent: " << inners[i].parent << "\n";
     std::cout << "\n";
   }
+
+  // [Step 6] Count edges
+  std::vector<int> edge_count(num_brt_nodes);
+  std::vector<int> prefix_sum(num_brt_nodes);
+
+  // root has no parent, so don't do for index 0
+  for (int i = 1; i < num_brt_nodes; ++i) {
+    const int my_depth = inners[i].delta_node / 3;
+    const int parent_depth = inners[inners[i].parent].delta_node / 3;
+    edge_count[i] = my_depth - parent_depth;
+  }
+
+  for (int i = 0; i < num_brt_nodes; ++i) {
+    std::cout << "Node " << i << " edge count: " << edge_count[i] << std::endl;
+  }
+
+  // prefix sum
+  std::partial_sum(edge_count.begin(), edge_count.end(), prefix_sum.begin());
+
+  // [Step 6.1] Allocate BH nodes
+  const int num_bh_nodes = prefix_sum.back() + 1;
+  const auto root_delta = inners[0].delta_node;  // 1
+  std::cout << "Num Octree Nodes: " << num_bh_nodes << "\n";
+  std::cout << "Root delta: " << root_delta << "\n";
 
   return EXIT_SUCCESS;
 }
