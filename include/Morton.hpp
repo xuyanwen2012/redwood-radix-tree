@@ -12,7 +12,7 @@ _NODISCARD inline Code_t PointToCode(const float x, const float y,
                                      const float z,
                                      const float min_coord = 0.0f,
                                      const float range = 1.0f) {
-  constexpr uint32_t bitscale = 0xFFFFFFFFu >> (32 - (CODE_LEN / 3));  // 1024
+  constexpr uint32_t bitscale = 0xFFFFFFFFu >> (32 - (CODE_LEN / 3));
   const auto x_coord =
       static_cast<uint_fast16_t>(bitscale * ((x - min_coord) / range));
   const auto y_coord =
@@ -25,7 +25,7 @@ _NODISCARD inline Code_t PointToCode(const float x, const float y,
 _NODISCARD inline Eigen::Vector3f CodeToPoint(const Code_t code,
                                               const float min_coord = 0.0f,
                                               const float range = 1.0f) {
-  constexpr uint32_t bitscale = 0xFFFFFFFFu >> (32 - (CODE_LEN / 3));  // 1024
+  constexpr uint32_t bitscale = 0xFFFFFFFFu >> (32 - (CODE_LEN / 3));
   uint_fast16_t dec_raw_x, dec_raw_y, dec_raw_z;
   libmorton::morton3D_32_decode(code, dec_raw_x, dec_raw_y, dec_raw_z);
   const float dec_x =
