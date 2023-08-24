@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cmath>
+#include <algorithm>
+
 #ifdef _MSC_VER
 #include <immintrin.h>
 #endif
