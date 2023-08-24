@@ -1,43 +1,53 @@
 #include <Eigen/Dense>
+#include <algorithm>
+#include <bitset>
 #include <boost/container/small_vector.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <numeric>
+#include <random>
 
-#include "Kernel.hpp"
+#include "Common.hpp"
+#include "Morton.hpp"
+
+void PrintVector3F(const Eigen::Vector3f& vec) {
+  std::cout << "(" << vec.x() << ", " << vec.y() << ", " << vec.z() << ")\n";
+}
 
 int main() {
-  Eigen::MatrixXd mat(2, 2);
-  mat << 1, 2, 3, 4;
+  thread_local std::mt19937 gen(114514);  // NOLINT(cert-msc51-cpp)
+  static std::uniform_real_distribution dis(0.0f, 1.0f);
 
-  Eigen::VectorXd vec(2);
-  vec << 5, 6;
+  // Prepare Inputs
+  constexpr int n = 64;
+  std::vector<Eigen::Vector3f> inputs(n);
+  std::generate(inputs.begin(), inputs.end(),
+                [&] { return Eigen::Vector3f(dis(gen), dis(gen), dis(gen)); });
 
-  Eigen::VectorXd result = mat * vec;
+  std::for_each(inputs.begin(), inputs.end(), PrintVector3F);
 
-  std::cout << "Matrix:\n" << mat << "\n";
-  std::cout << "Vector:\n" << vec << "\n";
-  std::cout << "Result:\n" << result << "\n";
+  // [Step 1] Compute Morton Codes
+  std::vector<Code_t> morton_keys;
+  morton_keys.reserve(n);
+  std::transform(inputs.begin(), inputs.end(), std::back_inserter(morton_keys),
+                 [&](const auto& vec) {
+                   const auto x = vec.x();
+                   const auto y = vec.y();
+                   const auto z = vec.z();
+                   return MortonCode32(ToNBitInt(x), ToNBitInt(y),
+                                       ToNBitInt(z));
+                 });
 
-  Eigen::Vector3f a;
-  boost::container::small_vector<uint32_t, 8> sv;
+  // [Step 2] Sort Morton Codes by Key
+  std::sort(morton_keys.begin(), morton_keys.end());
 
-  // Add elements to the small_vector
-  for (int i = 0; i < 4; ++i) {
-    sv.push_back(i);
-  }
+  // [Step 3-4] Handle Duplicates
+  morton_keys.erase(std::unique(morton_keys.begin(), morton_keys.end()),
+                    morton_keys.end());
 
-  // Print the elements
-  std::cout << "SmallVector elements: ";
-  for (const auto& element : sv) {
-    std::cout << element << " ";
-  }
-  std::cout << std::endl;
-
-  // Print capacity and size
-  std::cout << "Capacity: " << sv.capacity() << std::endl;
-  std::cout << "Size: " << sv.size() << std::endl;
-
-  TestKernel();
+  std::for_each(morton_keys.begin(), morton_keys.end(), [](const auto key) {
+    std::cout << key << "\t" << std::bitset<32>(key) << "\t" << std::endl;
+  });
 
   return EXIT_SUCCESS;
 }
