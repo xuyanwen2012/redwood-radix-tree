@@ -7,7 +7,6 @@
 #include <random>
 
 #include "BinaryRadixTree.hpp"
-#include "Common.hpp"
 #include "Morton.hpp"
 #include "Octree.hpp"
 
@@ -96,8 +95,8 @@ int main() {
   std::vector<oct::OctNode> bh_nodes(num_oc_nodes);
 
   constexpr auto tree_range = 1.0f;
-  int root_level = inners[0].delta_node / 3;
-  Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (root_level * 3));
+  const int root_level = inners[0].delta_node / 3;
+  const Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (root_level * 3));
   std::cout << "root_level: " << root_level << "\n";
   std::cout << "root_prefix: " << root_prefix << " - "
             << std::bitset<CODE_LEN>(root_prefix) << "\n";
@@ -110,13 +109,13 @@ int main() {
   // https://github.com/ahmidou/ShapeExtraction/blob/master/src/Octree.cu
   for (int i = 1; i < num_oc_nodes; ++i) {
     int oct_idx = oc_node_offsets[i];
-    int n_new_nodes = edge_count[i];
+    const int n_new_nodes = edge_count[i];
     for (int j = 0; j < n_new_nodes - 1; ++j) {
-      int level = inners[i].delta_node / 3 - j;
-      Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
-      int child_idx = node_prefix & 0b111;
-      int parent = oct_idx + 1;
-      bh_nodes[parent].setChild(oct_idx, child_idx);
+	    const int level = inners[i].delta_node / 3 - j;
+	    const Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
+	    const int child_idx = node_prefix & 0b111;
+	    const int parent = oct_idx + 1;
+      bh_nodes[parent].SetChild(oct_idx, child_idx);
 
       bh_nodes[oct_idx].cornor =
           CodeToPoint(node_prefix << (CODE_LEN - (3 * level)));
@@ -131,12 +130,12 @@ int main() {
       while (edge_count[rt_parent] == 0) {
         rt_parent = inners[rt_parent].parent;
       }
-      int oct_parent = oc_node_offsets[rt_parent];
-      int top_level = inners[i].delta_node / 3 - n_new_nodes + 1;
-      Code_t top_node_prefix = morton_keys[i] >> (CODE_LEN - (3 * top_level));
-      int child_idx = top_node_prefix & 0b111;
+      const int oct_parent = oc_node_offsets[rt_parent];
+      const int top_level = inners[i].delta_node / 3 - n_new_nodes + 1;
+      const Code_t top_node_prefix = morton_keys[i] >> (CODE_LEN - (3 * top_level));
+      const int child_idx = top_node_prefix & 0b111;
 
-      bh_nodes[oct_parent].setChild(oct_idx, child_idx);
+      bh_nodes[oct_parent].SetChild(oct_idx, child_idx);
 
       bh_nodes[oct_idx].cornor =
           CodeToPoint(top_node_prefix << (CODE_LEN - (3 * top_level)));

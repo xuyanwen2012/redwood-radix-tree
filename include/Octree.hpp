@@ -41,7 +41,7 @@ struct OctNode {
    * @param child: index of octree node that will become the child
    * @param my_child_idx: which of my children it will be [0-7]
    */
-  void setChild(const int child, const int my_child_idx);
+  void SetChild(const int child, const int my_child_idx);
 
   /**
    * @brief Set the Leaf object
@@ -49,7 +49,7 @@ struct OctNode {
    * @param leaf: index of point that will become the leaf child
    * @param my_child_idx: which of my children it will be [0-7]
    */
-  void setLeaf(const int leaf, const int my_child_idx);
+  void SetLeaf(const int leaf, const int my_child_idx);
 };
 
 // OctNode MakeNode(const int root_delta, const Code_t root_prefix);
