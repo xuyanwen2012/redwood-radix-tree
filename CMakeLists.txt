@@ -23,11 +23,6 @@ find_package(Eigen3 REQUIRED)
 target_include_directories(my_app PUBLIC ${EIGEN3_INCLUDE_DIR})
 message(STATUS "Eigen3 version: ${Eigen3_VERSION}")
 
-# # Add Boost
-# find_package(Boost REQUIRED COMPONENTS container)
-# message(STATUS "Boost version: ${Boost_VERSION}")
-# target_link_libraries(my_app PUBLIC Boost::container)
-
 # CUDA
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_75 --expt-relaxed-constexpr")
 
