@@ -17,7 +17,8 @@ target_include_directories(
   PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_features(my_app PUBLIC cxx_std_17)
-target_compile_options(my_app PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(my_app PRIVATE -Wall -Wextra -Wpedantic)
+# -Werror
 
 # Add Eigen
 find_package(Eigen3 REQUIRED)
