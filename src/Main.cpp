@@ -104,8 +104,7 @@ int main() {
   std::vector<brt::InnerNodes> inners(num_brt_nodes);
 
   TimeTask("Build Binary Radix Tree", [&] {
-	  ProcessInternalNodes(morton_keys.size(), morton_keys.data(),
-	                       inners.data());
+    ProcessInternalNodes(morton_keys.size(), morton_keys.data(), inners.data());
   });
 
   // for (int i = 0; i < num_brt_nodes; ++i) {
@@ -146,14 +145,14 @@ int main() {
 
   // [Step 7] Create unlinked BH nodes
   TimeTask("Make Unlinked BH nodes", [&] {
-	  MakeNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
-	            morton_keys.data(), inners.data(), num_brt_nodes, range);
+    MakeNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
+              morton_keys.data(), inners.data(), num_brt_nodes, range);
   });
 
   // [Step 8] Linking BH nodes
   TimeTask("Link BH nodes", [&] {
-	  LinkNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
-	            morton_keys.data(), inners.data(), num_brt_nodes);
+    LinkNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
+              morton_keys.data(), inners.data(), num_brt_nodes);
   });
 
   CheckTree(root_prefix, root_level * 3, bh_nodes.data(), 0,
