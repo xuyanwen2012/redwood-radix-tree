@@ -34,6 +34,7 @@ _NODISCARD inline int Delta(const Code_t* morton_keys, const int i,
  * @brief Calculate the number of common prefix bits between two morton codes.
  * Safe version, return -1 if the index is out of range.
  *
+ * @param key_num: Number of morton codes (after remove duplicate)
  * @param morton_keys: sorted (not necessary) morton codes
  * @param i: index of the first morton code
  * @param j: index of the second morton code
@@ -46,11 +47,11 @@ _NODISCARD inline int DeltaSafe(const int key_num, const Code_t* morton_keys,
 
 /**
  * @brief Given a sorted array of morton codes, make the nodes of binary radix
- * tree. The radix has 'n-1' internel nodes.
+ * tree. The radix has 'n-1' internal nodes.
  *
  * @param key_num: number of sorted morton codes
  * @param morton_keys: sorted morton codes
- * @param brt_nodes: output an array of internel nodes of size 'n-1'
+ * @param brt_nodes: output an array of internal nodes of size 'n-1'
  */
 void ProcessInternalNodes(int key_num, const Code_t* morton_keys,
                           InnerNodes* brt_nodes);
@@ -58,12 +59,12 @@ void ProcessInternalNodes(int key_num, const Code_t* morton_keys,
 namespace node {
 
 template <typename T>
-_NODISCARD inline T make_leaf(const T& index) {
-  return index ^ ((-1 ^ index) & (1UL << ((sizeof(T) * 8 - 1))));
+_NODISCARD T make_leaf(const T& index) {
+  return index ^ ((-1 ^ index) & 1UL << (sizeof(T) * 8 - 1));
 }
 
 template <typename T>
-_NODISCARD inline T make_internal(const T& index) {
+_NODISCARD T make_internal(const T& index) {
   return index;
 }
 }  // namespace node
@@ -87,13 +88,13 @@ T max(const T& x, const T& y) {
 }
 
 template <typename T>
-int divideceil(const T& x, const T& y) {
+int divide_ceil(const T& x, const T& y) {
   return (x + y - 1) / y;
 }
 
 /** Integer division by two, rounding up */
 template <typename T>
-int divide2ceil(const T& x) {
+int divide2_ceil(const T& x) {
   return (x + 1) >> 1;
 }
 }  // namespace math

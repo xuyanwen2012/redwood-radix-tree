@@ -49,20 +49,21 @@ int main() {
 
   float min_coord = 0.0f;
   float max_coord = 1.0f;
+
   TimeTask("Find Min Max", [&] {
-    const auto x =
+    const auto [x_min, x_max] =
         std::minmax_element(inputs.begin(), inputs.end(), CompareAxis<0>);
-    const auto y =
+    const auto [y_min, y_max] =
         std::minmax_element(inputs.begin(), inputs.end(), CompareAxis<1>);
-    const auto z =
+    const auto [z_min, z_max] =
         std::minmax_element(inputs.begin(), inputs.end(), CompareAxis<2>);
-    std::array<float, 3> mins{x.first->x(), y.first->y(), z.first->z()};
-    std::array<float, 3> maxes{x.second->x(), y.second->y(), z.second->z()};
+    std::array<float, 3> mins{x_min->x(), y_min->y(), z_min->z()};
+    std::array<float, 3> maxes{x_max->x(), y_max->y(), z_max->z()};
     min_coord = *std::min_element(mins.begin(), mins.end());
     max_coord = *std::max_element(maxes.begin(), maxes.end());
   });
 
-  float range = max_coord - min_coord;
+  const float range = max_coord - min_coord;
 
   std::cout << "Min: " << min_coord << "\n";
   std::cout << "Max: " << max_coord << "\n";
@@ -103,8 +104,8 @@ int main() {
   std::vector<brt::InnerNodes> inners(num_brt_nodes);
 
   TimeTask("Build Binary Radix Tree", [&] {
-    brt::ProcessInternalNodes(morton_keys.size(), morton_keys.data(),
-                              inners.data());
+	  ProcessInternalNodes(morton_keys.size(), morton_keys.data(),
+	                       inners.data());
   });
 
   // for (int i = 0; i < num_brt_nodes; ++i) {
@@ -135,7 +136,7 @@ int main() {
   // [Step 6.2] Allocate BH nodes
   const int num_oc_nodes = oc_node_offsets.back();
   const int root_level = inners[0].delta_node / 3;
-  Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (3 * root_level));
+  const Code_t root_prefix = morton_keys[0] >> (kCodeLen - (3 * root_level));
   std::vector<oct::OctNode> bh_nodes(num_oc_nodes);
 
   // Debug print
@@ -145,18 +146,18 @@ int main() {
 
   // [Step 7] Create unlinked BH nodes
   TimeTask("Make Unlinked BH nodes", [&] {
-    oct::MakeNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
-                   morton_keys.data(), inners.data(), num_brt_nodes, range);
+	  MakeNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
+	            morton_keys.data(), inners.data(), num_brt_nodes, range);
   });
 
   // [Step 8] Linking BH nodes
   TimeTask("Link BH nodes", [&] {
-    oct::LinkNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
-                   morton_keys.data(), inners.data(), num_brt_nodes);
+	  LinkNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
+	            morton_keys.data(), inners.data(), num_brt_nodes);
   });
 
-  oct::CheckTree(root_prefix, root_level * 3, bh_nodes.data(), 0,
-                 morton_keys.data());
+  CheckTree(root_prefix, root_level * 3, bh_nodes.data(), 0,
+            morton_keys.data());
 
   // for (int i = 0; i < num_oc_nodes; ++i) {
   //   std::cout << "OctNode " << i << "\n";

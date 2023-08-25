@@ -37,7 +37,7 @@ void ProcessInternalNodes(const int key_num, const Code_t* morton_keys,
 
     int t{I};
     do {
-      t = math::divide2ceil<int>(t);
+      t = math::divide2_ceil<int>(t);
       if (DeltaSafe(key_num, morton_keys, i, i + (s + t) * direction) >
           delta_node)
         s += t;
