@@ -52,7 +52,7 @@ int main() {
   for (int i = 0; i < num_brt_nodes; ++i) {
     std::cout << "Node " << i << "\n";
     std::cout << "\tdelta_node: " << inners[i].delta_node << "\n";
-    //std::cout << "\tsfc_code: " << inners[i].sfc_code << "\n";
+    // std::cout << "\tsfc_code: " << inners[i].sfc_code << "\n";
     std::cout << "\tleft: " << inners[i].left << "\n";
     std::cout << "\tright: " << inners[i].right << "\n";
     std::cout << "\tparent: " << inners[i].parent << "\n";
