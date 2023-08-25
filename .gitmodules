@@ -1,3 +1,6 @@
 [submodule "libmorton"]
 	path = extern/libmorton
 	url = https://github.com/Forceflow/libmorton.git
+[submodule "extern/cxxopts"]
+	path = extern/cxxopts
+	url = https://github.com/jarro2783/cxxopts.git
