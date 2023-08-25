@@ -14,13 +14,11 @@
  * @param num input number
  * @return number of leading zeros
  */
-_NODISCARD inline unsigned CountLeadingZeros(const uint32_t num) {
-#ifdef __CUDA_ARCH__
-  return __clz(num);
+_NODISCARD inline unsigned CountLeadingZeros(const uint64_t num) {
+#ifdef _MSC_VER
+  return _lzcnt_u64(num);
 #elif __GNUC__ || __clang__
-  return __builtin_clz(num);
-#elif _MSC_VER
-  return _lzcnt_u32(num);
+  return __builtin_clzll(num);
 #endif
 }
 
@@ -31,7 +29,7 @@ _NODISCARD inline unsigned CountLeadingZeros(const uint32_t num) {
  * @param j second number
  * @return number of common prefix bits
  */
-_NODISCARD inline unsigned CommonPrefix(const uint32_t i, const uint32_t j) {
+_NODISCARD inline unsigned CommonPrefix(const uint64_t i, const uint64_t j) {
   constexpr auto unused_bits = 1;
   return CountLeadingZeros(i ^ j) - unused_bits;
 }

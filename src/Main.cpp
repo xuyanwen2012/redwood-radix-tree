@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+// #include <boost/program_options.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <numeric>
@@ -28,12 +29,16 @@ bool CompareAxis(const Eigen::Vector3f& a, const Eigen::Vector3f& b) {
 }
 
 int main() {
+  // po::options_description desc("Allowed options");
+  // desc.add_options()("help", "produce help message")(
+  // "compression", po::value<int>(), "set compression level");
+
   thread_local std::mt19937 gen(114514);  // NOLINT(cert-msc51-cpp)
   static std::uniform_real_distribution dis(0.0f, 1.0f);
 
   // Prepare Inputs
-  constexpr int input_size = 1024 * 40;
-  // constexpr int input_size = 1280 * 720;
+  // constexpr int input_size = 1024;
+  constexpr int input_size = 1280 * 720;
   std::vector<Eigen::Vector3f> inputs(input_size);
   std::generate(inputs.begin(), inputs.end(), [&] {
     const auto x = dis(gen) * 1024.0f;
