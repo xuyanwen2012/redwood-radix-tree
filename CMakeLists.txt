@@ -16,9 +16,9 @@ target_sources(my_app
 
 target_include_directories(my_app 
   PRIVATE 
-    libmorton/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/extern/libmorton/include
   PUBLIC 
-    include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_compile_features(my_app PUBLIC cxx_std_17)
