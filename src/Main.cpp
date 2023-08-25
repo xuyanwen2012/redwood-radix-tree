@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
-// #include <boost/program_options.hpp>
 #include <cstdlib>
+#include <cxxopts.hpp>
 #include <iostream>
 #include <numeric>
 #include <random>
@@ -12,10 +12,6 @@
 #include "Morton.hpp"
 #include "Octree.hpp"
 #include "Utils.hpp"
-
-void PrintVector3F(const Eigen::Vector3f& vec) {
-  std::cout << "(" << vec.x() << ", " << vec.y() << ", " << vec.z() << ")\n";
-}
 
 template <uint8_t Axis>
 bool CompareAxis(const Eigen::Vector3f& a, const Eigen::Vector3f& b) {
@@ -28,10 +24,40 @@ bool CompareAxis(const Eigen::Vector3f& a, const Eigen::Vector3f& b) {
   }
 }
 
-int main() {
-  // po::options_description desc("Allowed options");
-  // desc.add_options()("help", "produce help message")(
-  // "compression", po::value<int>(), "set compression level");
+int main(int argc, char** argv) {
+  cxxopts::Options options(
+      "Redwood Radix Tree",
+      "Redwood accelerated Binary Radix Tree and Octree Implementation");
+
+  // clang-format off
+  options.add_options()
+    ("f,file", "Input file name", cxxopts::value<std::string>())
+    ("j,thread", "Number of threads", cxxopts::value<int>()->default_value("1"))
+    ("c,cpu", "Enable CPU baseline", cxxopts::value<bool>()->default_value("false"))
+    ("p,print", "Print Debug", cxxopts::value<bool>()->default_value("false"))
+    ("h,help", "Print usage");
+  // clang-format on
+
+  options.parse_positional({"file"});
+
+  const auto result = options.parse(argc, argv);
+
+  if (result.count("help")) {
+    std::cout << options.help() << std::endl;
+    return EXIT_SUCCESS;
+  }
+
+  if (!result.count("file")) {
+    std::cerr
+        << "requires an input file (\"../../data/1m_nn_uniform_4f.dat\")\n";
+    std::cout << options.help() << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  const auto data_file = result["file"].as<std::string>();
+  const auto num_threads = result["thread"].as<int>();
+  const auto cpu = result["cpu"].as<bool>();
+  const auto print = result["print"].as<bool>();
 
   thread_local std::mt19937 gen(114514);  // NOLINT(cert-msc51-cpp)
   static std::uniform_real_distribution dis(0.0f, 1.0f);
@@ -91,13 +117,15 @@ int main() {
                       morton_keys.end());
   });
 
-  // std::for_each(morton_keys.begin(), morton_keys.end(),
-  //               [min_coord, range](const auto key) {
-  //                 std::cout << key << "\t" << std::bitset<CODE_LEN>(key) <<
-  //                 "\t"
-  //                           << CodeToPoint(key, min_coord, range).transpose()
-  //                           << std::endl;
-  //               });
+  if (print) {
+    std::for_each(morton_keys.begin(), morton_keys.end(),
+                  [min_coord, range](const auto key) {
+                    std::cout << key << "\t" << std::bitset<kCodeLen>(key)
+                              << "\t"
+                              << CodeToPoint(key, min_coord, range).transpose()
+                              << std::endl;
+                  });
+  }
 
   // [Step 5] Build Binary Radix Tree
   const auto num_brt_nodes = morton_keys.size() - 1;
@@ -107,14 +135,16 @@ int main() {
     ProcessInternalNodes(morton_keys.size(), morton_keys.data(), inners.data());
   });
 
-  // for (int i = 0; i < num_brt_nodes; ++i) {
-  //   std::cout << "Node " << i << "\n";
-  //   std::cout << "\tdelta_node: " << inners[i].delta_node << "\n";
-  //   std::cout << "\tleft: " << inners[i].left << "\n";
-  //   std::cout << "\tright: " << inners[i].right << "\n";
-  //   std::cout << "\tparent: " << inners[i].parent << "\n";
-  //   std::cout << "\n";
-  // }
+  if (print) {
+    for (int i = 0; i < num_brt_nodes; ++i) {
+      std::cout << "Node " << i << "\n";
+      std::cout << "\tdelta_node: " << inners[i].delta_node << "\n";
+      std::cout << "\tleft: " << inners[i].left << "\n";
+      std::cout << "\tright: " << inners[i].right << "\n";
+      std::cout << "\tparent: " << inners[i].parent << "\n";
+      std::cout << "\n";
+    }
+  }
 
   // [Step 6] Count edges
   std::vector<int> edge_count(num_brt_nodes);
@@ -158,23 +188,25 @@ int main() {
   CheckTree(root_prefix, root_level * 3, bh_nodes.data(), 0,
             morton_keys.data());
 
-  // for (int i = 0; i < num_oc_nodes; ++i) {
-  //   std::cout << "OctNode " << i << "\n";
-  //   std::cout << "\tchild_node_mask: "
-  //             << std::bitset<8>(bh_nodes[i].child_node_mask) << "\n";
-  //   std::cout << "\tchild_leaf_mask: "
-  //             << std::bitset<8>(bh_nodes[i].child_leaf_mask) << "\n";
+  if (print) {
+    for (int i = 0; i < num_oc_nodes; ++i) {
+      std::cout << "OctNode " << i << "\n";
+      std::cout << "\tchild_node_mask: "
+                << std::bitset<8>(bh_nodes[i].child_node_mask) << "\n";
+      std::cout << "\tchild_leaf_mask: "
+                << std::bitset<8>(bh_nodes[i].child_leaf_mask) << "\n";
 
-  //   std::cout << "\tchild : [" << bh_nodes[i].children[0];
-  //   for (int j = 1; j < 8; ++j) {
-  //     std::cout << ", " << bh_nodes[i].children[j];
-  //   }
-  //   std::cout << "]\n";
+      std::cout << "\tchild : [" << bh_nodes[i].children[0];
+      for (int j = 1; j < 8; ++j) {
+        std::cout << ", " << bh_nodes[i].children[j];
+      }
+      std::cout << "]\n";
 
-  //   std::cout << "\tcell_size: " << bh_nodes[i].cell_size << "\n";
-  //   std::cout << "\tcornor: (" << bh_nodes[i].cornor.transpose() << ")\n";
-  //   std::cout << "\n";
-  // }
+      std::cout << "\tcell_size: " << bh_nodes[i].cell_size << "\n";
+      std::cout << "\tcornor: (" << bh_nodes[i].cornor.transpose() << ")\n";
+      std::cout << "\n";
+    }
+  }
 
   return EXIT_SUCCESS;
 }

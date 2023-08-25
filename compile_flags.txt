@@ -2,3 +2,4 @@
 -I/usr/include/eigen3/
 -I./include
 -I./extern/libmorton/include
+-I./extern/cxxopts/include
