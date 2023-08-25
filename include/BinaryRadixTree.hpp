@@ -7,14 +7,14 @@ namespace brt {
 
 struct InnerNodes {
   // 31-bit morton code, packed to the right (or 63-bit)
-  Code_t sfc_code;
+  // Code_t sfc_code;
 
   // The number of bits in the morton code, this node represents in [Karras]
   int delta_node;
 
   // pointers
-  int left;  // can be either inner or leaf
-  int right;
+  int left = -1;  // can be either inner or leaf
+  int right = -1;
   int parent = -1;
 };
 
