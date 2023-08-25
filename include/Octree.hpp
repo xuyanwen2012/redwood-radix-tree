@@ -7,7 +7,6 @@
 namespace oct {
 
 struct Body {
-  Eigen::Vector3f pos;
   float mass;
 };
 

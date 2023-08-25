@@ -1,5 +1,6 @@
 #include <Eigen/Dense>
 #include <algorithm>
+#include <array>
 #include <bitset>
 #include <cstdlib>
 #include <iostream>
@@ -14,6 +15,17 @@ void PrintVector3F(const Eigen::Vector3f& vec) {
   std::cout << "(" << vec.x() << ", " << vec.y() << ", " << vec.z() << ")\n";
 }
 
+template <uint8_t Axis>
+bool CompareAxis(const Eigen::Vector3f& a, const Eigen::Vector3f& b) {
+  if constexpr (Axis == 0) {
+    return a.x() < b.x();
+  } else if constexpr (Axis == 1) {
+    return a.y() < b.y();
+  } else {
+    return a.z() < b.z();
+  }
+}
+
 int main() {
   thread_local std::mt19937 gen(114514);  // NOLINT(cert-msc51-cpp)
   static std::uniform_real_distribution dis(0.0f, 1.0f);
@@ -21,17 +33,36 @@ int main() {
   // Prepare Inputs
   constexpr int n = 128;
   std::vector<Eigen::Vector3f> inputs(n);
-  std::generate(inputs.begin(), inputs.end(),
-                [&] { return Eigen::Vector3f(dis(gen), dis(gen), dis(gen)); });
+  std::generate(inputs.begin(), inputs.end(), [&] {
+    const auto x = dis(gen) * 1024.0f;
+    const auto y = dis(gen) * 1024.0f;
+    const auto z = dis(gen) * 1024.0f;
+    return Eigen::Vector3f(x, y, z);
+  });
 
-  // std::for_each(inputs.begin(), inputs.end(), PrintVector3F);
+  const auto x =
+      std::minmax_element(inputs.begin(), inputs.end(), CompareAxis<0>);
+  const auto y =
+      std::minmax_element(inputs.begin(), inputs.end(), CompareAxis<1>);
+  const auto z =
+      std::minmax_element(inputs.begin(), inputs.end(), CompareAxis<2>);
+  std::array<float, 3> mins{x.first->x(), y.first->y(), z.first->z()};
+  std::array<float, 3> maxes{x.second->x(), y.second->y(), z.second->z()};
+  const auto min_coord = *std::min_element(mins.begin(), mins.end());
+  const auto max_coord = *std::max_element(maxes.begin(), maxes.end());
+  const auto range = max_coord - min_coord;
+  std::cout << "Min: " << min_coord << "\n";
+  std::cout << "Max: " << max_coord << "\n";
+  std::cout << "Range: " << range << "\n";
 
   // [Step 1] Compute Morton Codes
   std::vector<Code_t> morton_keys;
   morton_keys.reserve(n);
-  std::transform(
-      inputs.begin(), inputs.end(), std::back_inserter(morton_keys),
-      [&](const auto& vec) { return PointToCode(vec.x(), vec.y(), vec.z()); });
+  std::transform(inputs.begin(), inputs.end(), std::back_inserter(morton_keys),
+                 [&](const auto& vec) {
+                   return PointToCode(vec.x(), vec.y(), vec.z(), min_coord,
+                                      range);
+                 });
 
   // [Step 2] Sort Morton Codes by Key
   std::sort(morton_keys.begin(), morton_keys.end());
@@ -40,23 +71,23 @@ int main() {
   morton_keys.erase(std::unique(morton_keys.begin(), morton_keys.end()),
                     morton_keys.end());
 
-  std::for_each(morton_keys.begin(), morton_keys.end(), [](const auto key) {
-    std::cout << key << "\t" << std::bitset<CODE_LEN>(key) << "\t"
-              << CodeToPoint(key).transpose() << std::endl;
-  });
+  std::for_each(morton_keys.begin(), morton_keys.end(),
+                [min_coord, range](const auto key) {
+                  std::cout << key << "\t" << std::bitset<CODE_LEN>(key) << "\t"
+                            << CodeToPoint(key, min_coord, range).transpose()
+                            << std::endl;
+                });
 
   // [Step 5] Build Binary Radix Tree
   constexpr auto num_brt_nodes = n - 1;
   std::vector<brt::InnerNodes> inners(num_brt_nodes);
 
-  for (int i = 0; i < num_brt_nodes; ++i) {
-    MyProcessInternalNode(n, morton_keys.data(), i, inners.data());
-  }
+  brt::ProcessInternalNodes(n, morton_keys.data(), inners.data());
 
   for (int i = 0; i < num_brt_nodes; ++i) {
     std::cout << "Node " << i << "\n";
     std::cout << "\tdelta_node: " << inners[i].delta_node << "\n";
-    std::cout << "\tsfc_code: " << inners[i].sfc_code << "\n";
+    // std::cout << "\tsfc_code: " << inners[i].sfc_code << "\n";
     std::cout << "\tleft: " << inners[i].left << "\n";
     std::cout << "\tright: " << inners[i].right << "\n";
     std::cout << "\tparent: " << inners[i].parent << "\n";
@@ -88,7 +119,7 @@ int main() {
 
   // [Step 7] Create unlinked BH nodes
   oct::MakeNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
-                 morton_keys.data(), inners.data(), num_brt_nodes);
+                 morton_keys.data(), inners.data(), num_brt_nodes, range);
 
   // [Step 8] Linking BH nodes
   oct::LinkNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
