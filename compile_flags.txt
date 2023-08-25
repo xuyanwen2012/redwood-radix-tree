@@ -1,4 +1,4 @@
 -std=c++17
 -I/usr/include/eigen3/
 -I./include
--I./libmorton/include
+-I./extern/libmorton/include
