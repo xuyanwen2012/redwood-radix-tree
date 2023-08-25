@@ -12,21 +12,17 @@ target_sources(
 
 target_include_directories(
   my_app
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/extern/libmorton/include
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  PRIVATE ${CMAKE_SOURCE_DIR}/extern/libmorton/include
+          ${CMAKE_SOURCE_DIR}/extern/cxxopts/include
+  PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_features(my_app PUBLIC cxx_std_17)
-target_compile_options(my_app PRIVATE -Wall)
+target_compile_options(my_app PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
 # Add Eigen
 find_package(Eigen3 REQUIRED)
 target_include_directories(my_app PUBLIC ${EIGEN3_INCLUDE_DIR})
 message(STATUS "Eigen3 version: ${Eigen3_VERSION}")
-
-# # Add Boost
-# find_package(Boost REQUIRED COMPONENTS program_options)
-# target_include_directories(my_app PUBLIC ${Boost_INCLUDE_DIRS})
-# target_link_libraries(my_app PUBLIC ${Boost_LIBRARIES})
 
 # CUDA
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_75 --expt-relaxed-constexpr")
