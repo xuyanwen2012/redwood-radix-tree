@@ -32,20 +32,18 @@ int main() {
   static std::uniform_real_distribution dis(0.0f, 1.0f);
 
   // Prepare Inputs
-  constexpr int input_size = 1024 * 100;
+  constexpr int input_size = 1024 * 40;
   // constexpr int input_size = 1280 * 720;
   std::vector<Eigen::Vector3f> inputs(input_size);
   std::generate(inputs.begin(), inputs.end(), [&] {
-    const auto x = dis(gen) * 10000.0f;
-    const auto y = dis(gen) * 10000.0f;
-    const auto z = dis(gen) * 10000.0f;
+    const auto x = dis(gen) * 1024.0f;
+    const auto y = dis(gen) * 1024.0f;
+    const auto z = dis(gen) * 1024.0f;
     return Eigen::Vector3f(x, y, z);
   });
 
   float min_coord = 0.0f;
-  float max_coord = 0.0f;
-  float range = 0.0f;
-
+  float max_coord = 1.0f;
   TimeTask("Find Min Max", [&] {
     const auto x =
         std::minmax_element(inputs.begin(), inputs.end(), CompareAxis<0>);
@@ -57,8 +55,9 @@ int main() {
     std::array<float, 3> maxes{x.second->x(), y.second->y(), z.second->z()};
     min_coord = *std::min_element(mins.begin(), mins.end());
     max_coord = *std::max_element(maxes.begin(), maxes.end());
-    range = max_coord - min_coord;
   });
+
+  float range = max_coord - min_coord;
 
   std::cout << "Min: " << min_coord << "\n";
   std::cout << "Max: " << max_coord << "\n";
@@ -114,16 +113,14 @@ int main() {
 
   // [Step 6] Count edges
   std::vector<int> edge_count(num_brt_nodes);
-  // Copy a "1" to the first element to account for the root
-
   TimeTask("Count Edges", [&] {
+    // Copy a "1" to the first element to account for the root
     edge_count[0] = 1;
     oct::CalculateEdgeCount(edge_count.data(), inners.data(), num_brt_nodes);
   });
 
   // [Step 6.1] Prefix sum
   std::vector<int> oc_node_offsets(num_brt_nodes + 1);
-
   TimeTask("Prefix Sum", [&] {
     std::partial_sum(edge_count.begin(), edge_count.end(),
                      oc_node_offsets.begin() + 1);
@@ -142,7 +139,6 @@ int main() {
   std::cout << "Num Octree Nodes: " << num_oc_nodes << "\n";
 
   // [Step 7] Create unlinked BH nodes
-
   TimeTask("Make Unlinked BH nodes", [&] {
     oct::MakeNodes(bh_nodes.data(), oc_node_offsets.data(), edge_count.data(),
                    morton_keys.data(), inners.data(), num_brt_nodes, range);
