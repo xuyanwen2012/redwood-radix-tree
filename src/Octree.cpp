@@ -44,9 +44,9 @@ void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
                const int num_brt_nodes, const float tree_range) {
   // the root doesn't represent level 0 of the "entire" octree
   const int root_level = inners[0].delta_node / 3;
-  const Code_t root_prefix = morton_keys[0] >> (CODE_LEN - (root_level * 3));
+  const Code_t root_prefix = morton_keys[0] >> (kCodeLen - (root_level * 3));
 
-  nodes[0].cornor = CodeToPoint(root_prefix << (CODE_LEN - (root_level * 3)));
+  nodes[0].cornor = CodeToPoint(root_prefix << (kCodeLen - (root_level * 3)));
   nodes[0].cell_size = tree_range;
 
   // skipping root
@@ -55,7 +55,7 @@ void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
     const int n_new_nodes = edge_count[i];
     for (int j = 0; j < n_new_nodes - 1; ++j) {
       const int level = inners[i].delta_node / 3 - j;
-      const Code_t node_prefix = morton_keys[i] >> (CODE_LEN - (3 * level));
+      const Code_t node_prefix = morton_keys[i] >> (kCodeLen - (3 * level));
       const int child_idx = static_cast<int>(node_prefix & 0b111);
       const int parent = oct_idx + 1;
 
@@ -63,7 +63,7 @@ void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
 
       // calculate corner point (LSB have already been shifted off)
       nodes[oct_idx].cornor =
-          CodeToPoint(node_prefix << (CODE_LEN - (3 * level)));
+          CodeToPoint(node_prefix << (kCodeLen - (3 * level)));
 
       // each cell is half the size of the level above it
       nodes[oct_idx].cell_size =
@@ -80,12 +80,12 @@ void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
       const int oct_parent = node_offsets[rt_parent];
       const int top_level = inners[i].delta_node / 3 - n_new_nodes + 1;
       const Code_t top_node_prefix =
-          morton_keys[i] >> (CODE_LEN - (3 * top_level));
+          morton_keys[i] >> (kCodeLen - (3 * top_level));
       const int child_idx = static_cast<int>(top_node_prefix & 0b111);
 
       nodes[oct_parent].SetChild(oct_idx, child_idx);
       nodes[oct_idx].cornor =
-          CodeToPoint(top_node_prefix << (CODE_LEN - (3 * top_level)));
+          CodeToPoint(top_node_prefix << (kCodeLen - (3 * top_level)));
       nodes[oct_idx].cell_size =
           tree_range / static_cast<float>(1 << (top_level - root_level));
     }
@@ -100,7 +100,7 @@ void LinkNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
       const int leaf_idx = GetLeafIndex(inners[i].left);
       const int leaf_level = inners[i].delta_node / 3 + 1;
       const Code_t leaf_prefix =
-          morton_keys[leaf_idx] >> (CODE_LEN - (3 * leaf_level));
+          morton_keys[leaf_idx] >> (kCodeLen - (3 * leaf_level));
 
       const int child_idx = static_cast<int>(leaf_prefix & 0b111);
       // walk up the radix tree until finding a node which contributes an
@@ -119,7 +119,7 @@ void LinkNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
       const int leaf_idx = GetLeafIndex(inners[i].left) + 1;
       const int leaf_level = inners[i].delta_node / 3 + 1;
       const Code_t leaf_prefix =
-          morton_keys[leaf_idx] >> (CODE_LEN - (3 * leaf_level));
+          morton_keys[leaf_idx] >> (kCodeLen - (3 * leaf_level));
 
       const int child_idx = static_cast<int>(leaf_prefix & 0b111);
 
@@ -147,7 +147,7 @@ void CheckTree(const Code_t prefix, const int code_len, const OctNode* nodes,
     }
     if (node.child_leaf_mask & (1 << i)) {
       Code_t leaf_prefix =
-          codes[node.children[i]] >> (CODE_LEN - (code_len + 3));
+          codes[node.children[i]] >> (kCodeLen - (code_len + 3));
       if (new_pref != leaf_prefix) {
         printf("oh no...\n");
       }
