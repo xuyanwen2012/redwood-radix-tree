@@ -8,17 +8,12 @@
 
 #include "Utils.hpp"
 
-// for 32-bit morton code
-constexpr auto kMaxTreeLevel = 10;
-constexpr auto kUnusedBits = 1;
-
-_NODISCARD inline unsigned ToNBitInt(const float x) {
-  constexpr auto n_bits = kMaxTreeLevel;
-
-  const auto result = static_cast<unsigned>(x * (1u << n_bits));
-  return std::min(result, (1u << n_bits) - 1u);
-}
-
+/**
+ * @brief Count the number of leading zeros in a 32-bit number.
+ *
+ * @param num input number
+ * @return number of leading zeros
+ */
 _NODISCARD inline unsigned CountLeadingZeros(const uint32_t num) {
 #ifdef __CUDA_ARCH__
   return __clz(num);
@@ -29,6 +24,14 @@ _NODISCARD inline unsigned CountLeadingZeros(const uint32_t num) {
 #endif
 }
 
+/**
+ * @brief Calculate the number of common prefix bits between two number.
+ *
+ * @param i first number
+ * @param j second number
+ * @return number of common prefix bits
+ */
 _NODISCARD inline unsigned CommonPrefix(const uint32_t i, const uint32_t j) {
-  return CountLeadingZeros(i ^ j) - kUnusedBits;
+  constexpr auto unused_bits = 1;
+  return CountLeadingZeros(i ^ j) - unused_bits;
 }
