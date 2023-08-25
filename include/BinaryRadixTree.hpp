@@ -3,6 +3,76 @@
 #include "Common.hpp"
 #include "Morton.hpp"
 
+namespace brt {
+
+struct InnerNodes {
+  // 31-bit morton code, packed to the right (or 63-bit)
+  Code_t sfc_code;
+
+  // The number of bits in the morton code, this node represents in [Karras]
+  int delta_node;
+
+  // pointers
+  int left;  // can be either inner or leaf
+  int right;
+  int parent = -1;
+};
+
+/**
+ * @brief Calculate the number of common prefix bits between two morton codes.
+ *
+ * @param morton_keys: sorted (not necessary) morton codes
+ * @param i: index of the first morton code
+ * @param j: index of the second morton code
+ * @return number of common prefix bits
+ */
+_NODISCARD inline int Delta(const Code_t* morton_keys, const int i,
+                            const int j) noexcept {
+  const auto li = morton_keys[i];
+  const auto lj = morton_keys[j];
+  return CommonPrefix(li, lj);
+}
+
+/**
+ * @brief Calculate the number of common prefix bits between two morton codes.
+ * Safe version, return -1 if the index is out of range.
+ *
+ * @param morton_keys: sorted (not necessary) morton codes
+ * @param i: index of the first morton code
+ * @param j: index of the second morton code
+ * @return number of common prefix bits
+ */
+_NODISCARD inline int DeltaSafe(const int key_num, const Code_t* morton_keys,
+                                const int i, const int j) noexcept {
+  return (j < 0 || j >= key_num) ? -1 : Delta(morton_keys, i, j);
+}
+
+/**
+ * @brief Given a sorted array of morton codes, make the nodes of binary radix
+ * tree. The radix has 'n-1' internel nodes.
+ *
+ * @param key_num: number of sorted morton codes
+ * @param morton_keys: sorted morton codes
+ * @param brt_nodes: output an array of internel nodes of size 'n-1'
+ */
+void ProcessInternalNodes(int key_num, const Code_t* morton_keys,
+                          InnerNodes* brt_nodes);
+
+namespace node {
+
+template <typename T>
+_NODISCARD inline T make_leaf(const T& index) {
+  return index ^ ((-1 ^ index) & (1UL << ((sizeof(T) * 8 - 1))));
+}
+
+template <typename T>
+_NODISCARD inline T make_internal(const T& index) {
+  return index;
+}
+}  // namespace node
+
+}  // namespace brt
+
 namespace math {
 template <typename T>
 int sign(T val) {
@@ -30,50 +100,3 @@ int divide2ceil(const T& x) {
   return (x + 1) >> 1;
 }
 }  // namespace math
-
-namespace brt {
-
-// This is the easier version
-struct InnerNodes {
-  // 31-bit morton code, packed to the right (or 63-bit)
-  Code_t sfc_code;
-
-  // The number of bits in the morton code, this node represents in [Karras]
-  int delta_node;
-
-  // pointers
-  int left;  // can be either inner or leaf
-  int right;
-  int parent = -1;
-};
-
-_NODISCARD inline int Delta(const Code_t* morton_keys, const int i,
-                            const int j) noexcept {
-  const auto li = morton_keys[i];
-  const auto lj = morton_keys[j];
-  return CommonPrefix(li, lj);
-}
-
-_NODISCARD inline int DeltaSafe(const int key_num, const Code_t* morton_keys,
-                                const int i, const int j) noexcept {
-  return (j < 0 || j >= key_num) ? -1 : Delta(morton_keys, i, j);
-}
-
-void MyProcessInternalNode(int key_num, const Code_t* morton_keys, const int i,
-                           InnerNodes* brt_nodes);
-
-namespace node {
-template <typename T>
-// index to a leaf node. difference between a leaf node index and an internal
-// node index is that the leaf's node index most significant bit is 1
-_NODISCARD inline T make_leaf(const T& index) {
-  return index ^ (-1 ^ index) & (1UL << ((sizeof(T) * 8 - 1)));
-}
-
-template <typename T>  // index to an internal node
-_NODISCARD inline T make_internal(const T& index) {
-  return index;
-}
-}  // namespace node
-
-}  // namespace brt

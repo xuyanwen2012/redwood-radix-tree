@@ -24,8 +24,6 @@ int main() {
   std::generate(inputs.begin(), inputs.end(),
                 [&] { return Eigen::Vector3f(dis(gen), dis(gen), dis(gen)); });
 
-  // std::for_each(inputs.begin(), inputs.end(), PrintVector3F);
-
   // [Step 1] Compute Morton Codes
   std::vector<Code_t> morton_keys;
   morton_keys.reserve(n);
@@ -49,9 +47,7 @@ int main() {
   constexpr auto num_brt_nodes = n - 1;
   std::vector<brt::InnerNodes> inners(num_brt_nodes);
 
-  for (int i = 0; i < num_brt_nodes; ++i) {
-    MyProcessInternalNode(n, morton_keys.data(), i, inners.data());
-  }
+  brt::ProcessInternalNodes(n, morton_keys.data(), inners.data());
 
   for (int i = 0; i < num_brt_nodes; ++i) {
     std::cout << "Node " << i << "\n";
