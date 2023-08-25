@@ -59,7 +59,6 @@ void ProcessInternalNodes(const int key_num, const Code_t* morton_keys,
                         : node::make_internal<int>(split + 1)};
 
     brt_nodes[i].delta_node = delta_node;
-    // brt_nodes[i].sfc_code = morton_keys[i] >> (32 - delta_node);
     brt_nodes[i].left = left;
     brt_nodes[i].right = right;
 
