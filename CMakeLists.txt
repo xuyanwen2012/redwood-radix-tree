@@ -3,18 +3,22 @@ project(my_app LANGUAGES CXX CUDA)
 
 add_executable(my_app)
 
-# file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/include/*.hpp")
+file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/include/*.hpp")
 
 target_sources(my_app
   PRIVATE
     src/Main.cpp
     src/Octree.cpp
     src/BinaryRadixTree.cpp
+  PUBLIC
+    ${HEADER_LIST}
 )
 
 target_include_directories(my_app 
-    PRIVATE libmorton/include
-    PUBLIC include
+  PRIVATE 
+    libmorton/include
+  PUBLIC 
+    include
 )
 
 target_compile_features(my_app PUBLIC cxx_std_17)
