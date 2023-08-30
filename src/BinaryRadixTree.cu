@@ -1,7 +1,6 @@
-#include "BinaryRadixTree.hpp"
-
 #include <cassert>
 
+#include "BinaryRadixTree.hpp"
 #include "Morton.hpp"
 
 namespace brt {

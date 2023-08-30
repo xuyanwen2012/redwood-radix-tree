@@ -1,8 +1,7 @@
-#include "Octree.hpp"
-
 #include <iostream>
 
 #include "BinaryRadixTree.hpp"
+#include "Octree.hpp"
 namespace oct {
 
 void OctNode::SetChild(const int child, const int my_child_idx) {
