@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
-#include <random>
 #include <numeric>
+#include <random>
 
 #include "Morton.hpp"
 
@@ -24,40 +24,6 @@ __global__ void ComputeMortonKernel(Eigen::Vector3f* inputs,
                                    inputs[tid].z(), min_coord, range);
   }
 }
-
-// void foo(const float *A, const float *B, float *C, int rowsA, int colsA,
-//          int colsB) {
-//   dim3 threadsPerBlock(16, 16);
-//   dim3 numBlocks((colsB + threadsPerBlock.x - 1) / threadsPerBlock.x,
-//                  (rowsA + threadsPerBlock.y - 1) / threadsPerBlock.y);
-
-//   float *d_A, *d_B, *d_C;  // Device memory pointers
-
-//   // Allocate device memory for matrices A, B, and C
-//   cudaMalloc((void **)&d_A, rowsA * colsA * sizeof(float));
-//   cudaMalloc((void **)&d_B, colsA * colsB * sizeof(float));
-//   cudaMalloc((void **)&d_C, rowsA * colsB * sizeof(float));
-
-//   // Copy data from host to device
-//   cudaMemcpy(d_A, A, rowsA * colsA * sizeof(float), cudaMemcpyHostToDevice);
-//   cudaMemcpy(d_B, B, colsA * colsB * sizeof(float), cudaMemcpyHostToDevice);
-
-//   // Launch the matrix multiplication kernel
-//   matrixMultKernel<<<numBlocks, threadsPerBlock>>>(d_A, d_B, d_C, rowsA,
-//   colsA,
-//                                                    colsB);
-
-//   // Copy the result matrix C from device to host
-//   cudaMemcpy(C, d_C, rowsA * colsB * sizeof(float), cudaMemcpyDeviceToHost);
-
-//   // Free device memory
-//   cudaFree(d_A);
-//   cudaFree(d_B);
-//   cudaFree(d_C);
-
-//   cudaDeviceSynchronize();  // Wait for the kernel and memory copies to
-//   finish
-// }
 
 int main() {
   thread_local std::mt19937 gen(114514);  // NOLINT(cert-msc51-cpp)
@@ -94,17 +60,10 @@ int main() {
   HANDLE_ERROR(cudaMallocManaged(&u_morton_keys, input_size * sizeof(Code_t)));
   unifed_mem_used += input_size * sizeof(Code_t);
 
-  // ComputeMortonKernel<<<1, 1024>>>(u_inputs, u_morton_keys, input_size,
-                                  //  min_coord, range);
+  ComputeMortonKernel<<<1, 1024>>>(u_inputs, u_morton_keys, input_size,
+                                   min_coord, range);
 
-  // HANDLE_ERROR(cudaDeviceSynchronize());
-
-  std::vector<Code_t> morton_keys;
-  std::transform(u_inputs, u_inputs + input_size, std::back_inserter(morton_keys),
-                 [&](const auto& vec) {
-                   return PointToCode(vec.x(), vec.y(), vec.z(), min_coord,
-                                      range);
-                 });
+  HANDLE_ERROR(cudaDeviceSynchronize());
 
   std::cout << "Peek Morton Keys\n";
   for (int i = 0; i < 5; ++i) {

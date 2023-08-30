@@ -1,6 +1,7 @@
 [submodule "libmorton"]
 	path = extern/libmorton
-	url = https://github.com/Forceflow/libmorton.git
+	# Yanwen's Modified version that uses CUDA
+	url = https://github.com/xuyanwen2012/libmorton-cuda.git
 
 [submodule "extern/cxxopts"]
 	path = extern/cxxopts
