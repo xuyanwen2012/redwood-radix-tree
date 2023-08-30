@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common.hpp"
+// #include "Common.hpp"
 #include "Morton.hpp"
 
 namespace brt {
@@ -23,13 +23,16 @@ struct InnerNodes {
  * @param j: index of the second morton code
  * @return number of common prefix bits
  */
-_NODISCARD inline int Delta(const Code_t* morton_keys, const int i,
-                            const int j) noexcept {
-  const auto li = morton_keys[i];
-  const auto lj = morton_keys[j];
-  return CommonPrefix(li, lj);
-}
+_NODISCARD __device__ int Delta(const Code_t* morton_keys, const int i,
+                                const int j);
 
+// _NODISCARD  __device__ inline int Delta(const Code_t* morton_keys,
+//                                                 const int i,
+//                                                 const int j) noexcept {
+//   const auto li = morton_keys[i];
+//   const auto lj = morton_keys[j];
+//   return CommonPrefix(li, lj);
+// }
 /**
  * @brief Calculate the number of common prefix bits between two morton codes.
  * Safe version, return -1 if the index is out of range.
@@ -40,8 +43,9 @@ _NODISCARD inline int Delta(const Code_t* morton_keys, const int i,
  * @param j: index of the second morton code
  * @return number of common prefix bits
  */
-_NODISCARD inline int DeltaSafe(const int key_num, const Code_t* morton_keys,
-                                const int i, const int j) noexcept {
+_NODISCARD __device__ inline int DeltaSafe(const int key_num,
+                                           const Code_t* morton_keys,
+                                           const int i, const int j) noexcept {
   return (j < 0 || j >= key_num) ? -1 : Delta(morton_keys, i, j);
 }
 
@@ -59,12 +63,12 @@ void ProcessInternalNodes(int key_num, const Code_t* morton_keys,
 namespace node {
 
 template <typename T>
-_NODISCARD T make_leaf(const T& index) {
+_NODISCARD __device__ T make_leaf(const T& index) {
   return index ^ ((-1 ^ index) & 1UL << (sizeof(T) * 8 - 1));
 }
 
 template <typename T>
-_NODISCARD T make_internal(const T& index) {
+_NODISCARD __device__ T make_internal(const T& index) {
   return index;
 }
 }  // namespace node
@@ -73,28 +77,28 @@ _NODISCARD T make_internal(const T& index) {
 
 namespace math {
 template <typename T>
-int sign(T val) {
+__device__ int sign(T val) {
   return (T(0) < val) - (val < T(0));
 }
 
 template <typename T>
-T min(const T& x, const T& y) {
+__device__ T min(const T& x, const T& y) {
   return y ^ ((x ^ y) & -(x < y));
 }
 
 template <typename T>
-T max(const T& x, const T& y) {
+__device__ T max(const T& x, const T& y) {
   return x ^ ((x ^ y) & -(x < y));
 }
 
 template <typename T>
-int divide_ceil(const T& x, const T& y) {
+__device__ int divide_ceil(const T& x, const T& y) {
   return (x + y - 1) / y;
 }
 
 /** Integer division by two, rounding up */
 template <typename T>
-int divide2_ceil(const T& x) {
+__device__ int divide2_ceil(const T& x) {
   return (x + 1) >> 1;
 }
 }  // namespace math

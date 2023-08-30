@@ -2,34 +2,38 @@
 
 #include "BinaryRadixTree.hpp"
 #include "Octree.hpp"
+
 namespace oct {
 
-void OctNode::SetChild(const int child, const int my_child_idx) {
+__host__ __device__ void OctNode::SetChild(const int child,
+                                           const int my_child_idx) {
   children[my_child_idx] = child;
   // TODO: atomicOr in CUDA
   child_node_mask |= (1 << my_child_idx);
 }
 
-void OctNode::SetLeaf(const int leaf, const int my_child_idx) {
+__host__ __device__ void OctNode::SetLeaf(const int leaf,
+                                          const int my_child_idx) {
   children[my_child_idx] = leaf;
   // TODO: atomicOr in CUDA
   child_leaf_mask |= (1 << my_child_idx);
 }
 
-_NODISCARD bool IsLeaf(const int internal_value) {
+_NODISCARD __host__ __device__ bool IsLeaf(const int internal_value) {
   // check the most significant bit, which is used as a flag for "is leaf node"
   return internal_value >> (sizeof(int) * 8 - 1);
 }
 
-_NODISCARD int GetLeafIndex(const int internal_value) {
+_NODISCARD __host__ __device__ int GetLeafIndex(const int internal_value) {
   // delete the last bit which tells if this is leaf or internal index
   return internal_value &
          ~(1 << (sizeof(int) * 8 -
                  1));  // NOLINT(clang-diagnostic-shift-sign-overflow)
 }
 
-void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
-                        const int num_brt_nodes) {
+__host__ __device__ void CalculateEdgeCount(int* edge_count,
+                                            const brt::InnerNodes* inners,
+                                            const int num_brt_nodes) {
   // root has no parent, so don't do for index 0
   for (int i = 1; i < num_brt_nodes; ++i) {
     const int my_depth = inners[i].delta_node / 3;
@@ -38,9 +42,12 @@ void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
   }
 }
 
-void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
-               const Code_t* morton_keys, const brt::InnerNodes* inners,
-               const int num_brt_nodes, const float tree_range) {
+__host__ __device__ void MakeNodes(OctNode* nodes, const int* node_offsets,
+                                   const int* edge_count,
+                                   const Code_t* morton_keys,
+                                   const brt::InnerNodes* inners,
+                                   const int num_brt_nodes,
+                                   const float tree_range) {
   // the root doesn't represent level 0 of the "entire" octree
   const int root_level = inners[0].delta_node / 3;
   const Code_t root_prefix = morton_keys[0] >> (kCodeLen - (root_level * 3));
@@ -91,9 +98,11 @@ void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
   }
 }
 
-void LinkNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
-               const Code_t* morton_keys, const brt::InnerNodes* inners,
-               const int num_brt_nodes) {
+__host__ __device__ void LinkNodes(OctNode* nodes, const int* node_offsets,
+                                   const int* edge_count,
+                                   const Code_t* morton_keys,
+                                   const brt::InnerNodes* inners,
+                                   const int num_brt_nodes) {
   for (int i = 0; i < num_brt_nodes; ++i) {
     if (IsLeaf(inners[i].left)) {
       const int leaf_idx = GetLeafIndex(inners[i].left);
