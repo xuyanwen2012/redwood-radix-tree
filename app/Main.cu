@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <random>
+#include <numeric>
 
 #include "Morton.hpp"
 
@@ -93,10 +94,17 @@ int main() {
   HANDLE_ERROR(cudaMallocManaged(&u_morton_keys, input_size * sizeof(Code_t)));
   unifed_mem_used += input_size * sizeof(Code_t);
 
-  ComputeMortonKernel<<<1, 1024>>>(u_inputs, u_morton_keys, input_size,
-                                   min_coord, range);
+  // ComputeMortonKernel<<<1, 1024>>>(u_inputs, u_morton_keys, input_size,
+                                  //  min_coord, range);
 
-  HANDLE_ERROR(cudaDeviceSynchronize());
+  // HANDLE_ERROR(cudaDeviceSynchronize());
+
+  std::vector<Code_t> morton_keys;
+  std::transform(u_inputs, u_inputs + input_size, std::back_inserter(morton_keys),
+                 [&](const auto& vec) {
+                   return PointToCode(vec.x(), vec.y(), vec.z(), min_coord,
+                                      range);
+                 });
 
   std::cout << "Peek Morton Keys\n";
   for (int i = 0; i < 5; ++i) {
