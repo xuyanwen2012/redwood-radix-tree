@@ -31,6 +31,21 @@ __global__ void ComputeMortonKernel(Eigen::Vector3f* inputs,
   }
 }
 
+template <int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void AcceleratedComputeMortonKernel(Eigen::Vector3f* inputs,
+                                               Code_t* morton_keys, const int n,
+                                               const float min_coord,
+                                               const float range) {
+  const auto i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) {
+    const auto x = inputs[i].x();
+    const auto y = inputs[i].y();
+    const auto z = inputs[i].z();
+    const auto code = PointToCode(x, y, z, min_coord, range);
+    morton_keys[i] = code;
+  }
+}
+
 template <uint8_t Axis>
 __host__ __device__ bool CompareAxis(const Eigen::Vector3f& a,
                                      const Eigen::Vector3f& b) {
@@ -196,7 +211,8 @@ int main() {
   // // [Step 7] Create unlinked BH nodes
   // TimeTask("Make Unlinked BH nodes", [&] {
   //   MakeNodes(bh_nodes.data(), u_oc_node_offsets.data(), u_edge_count.data(),
-  //             u_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes, range);
+  //             u_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes,
+  //             range);
   // });
 
   return 0;
