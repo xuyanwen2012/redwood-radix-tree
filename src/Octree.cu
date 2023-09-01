@@ -31,16 +31,42 @@ _NODISCARD __host__ __device__ int GetLeafIndex(const int internal_value) {
                  1));  // NOLINT(clang-diagnostic-shift-sign-overflow)
 }
 
-// __host__ __device__ void CalculateEdgeCount(int* edge_count,
-//                                             const brt::InnerNodes* inners,
-//                                             const int num_brt_nodes) {
-//   // root has no parent, so don't do for index 0
-//   for (int i = 1; i < num_brt_nodes; ++i) {
-//     const int my_depth = inners[i].delta_node / 3;
-//     const int parent_depth = inners[inners[i].parent].delta_node / 3;
-//     edge_count[i] = my_depth - parent_depth;
-//   }
-// }
+__host__ __device__ void CalculateEdgeCountHelper(
+    const int i, int* edge_count, const brt::InnerNodes* inners) {
+  const int my_depth = inners[i].delta_node / 3;
+  const int parent_depth = inners[inners[i].parent].delta_node / 3;
+  edge_count[i] = my_depth - parent_depth;
+}
+
+__global__ void CalculateEdgeCountKernel(int* edge_count,
+                                         const brt::InnerNodes* inners,
+                                         const int num_brt_nodes) {
+  const auto i = blockIdx.x * blockDim.x + threadIdx.x;
+
+  // root has no parent, so don't do for index 0
+  if (i > 0 && i < num_brt_nodes) {
+    CalculateEdgeCountHelper(i, edge_count, inners);
+  }
+}
+
+void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
+                        const int num_brt_nodes) {
+  // the frist element is root
+  edge_count[0] = 1;
+
+  if constexpr (false) {
+    for (int i = 1; i < num_brt_nodes; ++i) {
+      CalculateEdgeCountHelper(i, edge_count, inners);
+    }
+  } else {
+    const int threads_per_block = 1024;
+    const int num_blocks = (num_brt_nodes + threads_per_block - 1) /
+                           threads_per_block;  // round up
+    CalculateEdgeCountKernel<<<num_blocks, threads_per_block>>>(
+        edge_count, inners, num_brt_nodes);
+    HANDLE_ERROR(cudaDeviceSynchronize());
+  }
+}
 
 __host__ __device__ void MakeNodesHelper(
     const int i, OctNode* nodes, const int* node_offsets, const int* edge_count,

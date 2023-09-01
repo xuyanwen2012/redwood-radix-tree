@@ -17,7 +17,7 @@
 
 namespace cg = cooperative_groups;
 
-__global__ void ComputeMortonKernel(Eigen::Vector3f* inputs,
+__global__ void ComputeMortonKernel(const Eigen::Vector3f* inputs,
                                     Code_t* morton_keys, const int n,
                                     const float min_coord, const float range) {
   const auto i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -28,18 +28,21 @@ __global__ void ComputeMortonKernel(Eigen::Vector3f* inputs,
   }
 }
 
-template <int BLOCK_THREADS, int ITEMS_PER_THREAD>
-__global__ void AcceleratedComputeMortonKernel(Eigen::Vector3f* inputs,
-                                               Code_t* morton_keys, const int n,
-                                               const float min_coord,
-                                               const float range) {
-  const auto i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < n) {
-    const auto x = inputs[i].x();
-    const auto y = inputs[i].y();
-    const auto z = inputs[i].z();
-    const auto code = PointToCode(x, y, z, min_coord, range);
-    morton_keys[i] = code;
+void ComputeMortonCode(const Eigen::Vector3f* inputs, Code_t* morton_keys,
+                       const int n, const float min_coord, const float range) {
+  if constexpr (false) {
+    // Parallelize
+    for (int i = 0; i < n; ++i) {
+      morton_keys[i] = PointToCode(inputs[i].x(), inputs[i].y(), inputs[i].z(),
+                                   min_coord, range);
+    }
+  } else {
+    constexpr int block_size = 1024;
+    const int num_blocks = (n + block_size - 1) / block_size;
+
+    ComputeMortonKernel<<<num_blocks, block_size>>>(inputs, morton_keys, n,
+                                                    min_coord, range);
+    HANDLE_ERROR(cudaDeviceSynchronize());
   }
 }
 
@@ -52,19 +55,6 @@ __host__ __device__ bool CompareAxis(const Eigen::Vector3f& a,
     return a.y() < b.y();
   }
   return a.z() < b.z();
-}
-
-__global__ void CalculateEdgeCountKernel(int* edge_count,
-                                         const brt::InnerNodes* inners,
-                                         const int num_brt_nodes) {
-  const auto i = blockIdx.x * blockDim.x + threadIdx.x;
-
-  // root has no parent, so don't do for index 0
-  if (i > 0 && i < num_brt_nodes) {
-    const int my_depth = inners[i].delta_node / 3;
-    const int parent_depth = inners[inners[i].parent].delta_node / 3;
-    edge_count[i] = my_depth - parent_depth;
-  }
 }
 
 int main() {
@@ -119,12 +109,8 @@ int main() {
 
   // [Step 1] Compute Morton Codes
   TimeTask("Compute Morton Codes", [&] {
-    constexpr int block_size = 1024;
-    const int num_blocks = (input_size + block_size - 1) / block_size;
-
-    ComputeMortonKernel<<<num_blocks, block_size>>>(
-        u_inputs.data(), u_morton_keys, input_size, min_coord, range);
-    HANDLE_ERROR(cudaDeviceSynchronize());
+    ComputeMortonCode(u_inputs.data(), u_morton_keys, input_size, min_coord,
+                      range);
   });
 
   // no longer need inputs
@@ -186,16 +172,8 @@ int main() {
   redwood::UsmVector<int> u_edge_count(num_brt_nodes);
 
   TimeTask("Count Edges", [&] {
-    constexpr int block_size = 1024;
-    const int num_blocks = (input_size + block_size - 1) / block_size;
-
-    // the frist element is root
-    u_edge_count[0] = 1;
-
-    CalculateEdgeCountKernel<<<num_blocks, block_size>>>(
-        u_edge_count.data(), u_brt_nodes.data(), num_brt_nodes);
-
-    HANDLE_ERROR(cudaDeviceSynchronize());
+    oct::CalculateEdgeCount(u_edge_count.data(), u_brt_nodes.data(),
+                            num_brt_nodes);
   });
 
   // [Step 6.1] Compute Prefix Sum
