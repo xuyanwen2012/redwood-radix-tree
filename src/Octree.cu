@@ -1,7 +1,11 @@
+#include <omp.h>
+
 #include <iostream>
 
 #include "BinaryRadixTree.hpp"
 #include "Octree.hpp"
+
+constexpr bool kUsingCpu = true;
 
 namespace oct {
 
@@ -54,7 +58,8 @@ void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
   // the frist element is root
   edge_count[0] = 1;
 
-  if constexpr (false) {
+  if constexpr (kUsingCpu) {
+#pragma omp parallel for
     for (int i = 1; i < num_brt_nodes; ++i) {
       CalculateEdgeCountHelper(i, edge_count, inners);
     }
@@ -135,8 +140,9 @@ void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
   nodes[0].cornor = CodeToPoint(root_prefix << (kCodeLen - (root_level * 3)));
   nodes[0].cell_size = tree_range;
 
-  if constexpr (false) {
-    // skipping root
+  if constexpr (kUsingCpu) {
+// skipping root
+#pragma omp parallel for
     for (int i = 1; i < num_brt_nodes; ++i) {
       MakeNodesHelper(i, nodes, node_offsets, edge_count, morton_keys, inners,
                       tree_range, root_level);
@@ -212,7 +218,8 @@ __global__ void LinkNodesKernel(OctNode* nodes, const int* node_offsets,
 void LinkNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
                const Code_t* morton_keys, const brt::InnerNodes* inners,
                const int num_brt_nodes) {
-  if constexpr (false) {
+  if constexpr (kUsingCpu) {
+#pragma omp parallel for
     for (int i = 0; i < num_brt_nodes; ++i) {
       LinkNodesHelper(i, nodes, node_offsets, edge_count, morton_keys, inners);
     }

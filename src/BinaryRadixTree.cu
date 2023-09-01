@@ -87,12 +87,15 @@ __global__ void ProcessInternalNodesKernel(const int key_num,
 
 void ProcessInternalNodes(const int key_num, const Code_t* morton_keys,
                           InnerNodes* brt_nodes) {
-  const int input_size = key_num;
-  const int block_size = 256;
-  const int num_blocks = (input_size + block_size - 1) / block_size;
-  ProcessInternalNodesKernel<<<num_blocks, block_size>>>(
-      input_size, morton_keys, brt_nodes);
-  HANDLE_ERROR(cudaDeviceSynchronize());
+  if constexpr (false) {
+  } else {
+    const int input_size = key_num;
+    const int block_size = 1024;
+    const int num_blocks = (input_size + block_size - 1) / block_size;
+    ProcessInternalNodesKernel<<<num_blocks, block_size>>>(
+        input_size, morton_keys, brt_nodes);
+    HANDLE_ERROR(cudaDeviceSynchronize());
+  }
 }
 
 }  // namespace brt

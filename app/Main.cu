@@ -1,6 +1,7 @@
 #include <cooperative_groups.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#include <omp.h>
 
 #include <Eigen/Dense>
 #include <algorithm>
@@ -30,8 +31,8 @@ __global__ void ComputeMortonKernel(const Eigen::Vector3f* inputs,
 
 void ComputeMortonCode(const Eigen::Vector3f* inputs, Code_t* morton_keys,
                        const int n, const float min_coord, const float range) {
-  if constexpr (false) {
-    // Parallelize
+  if constexpr (true) {
+#pragma omp parallel for
     for (int i = 0; i < n; ++i) {
       morton_keys[i] = PointToCode(inputs[i].x(), inputs[i].y(), inputs[i].z(),
                                    min_coord, range);
@@ -60,6 +61,8 @@ __host__ __device__ bool CompareAxis(const Eigen::Vector3f& a,
 int main() {
   thread_local std::mt19937 gen(114514);  // NOLINT(cert-msc51-cpp)
   static std::uniform_real_distribution<float> dis(0.0f, 1.0f);
+
+  omp_set_num_threads(4);
 
   // Prepare Inputs
   // constexpr int input_size = 640 * 480;
@@ -223,6 +226,9 @@ int main() {
 
   CheckTree(root_prefix, root_level * 3, u_bh_nodes.data(), 0,
             u_sorted_morton_keys.data());
+
+  int actual_threads = omp_get_num_threads();
+  std::cout << "Actual number of threads: " << actual_threads << std::endl;
 
   return 0;
 }

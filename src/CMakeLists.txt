@@ -32,3 +32,15 @@ set_target_properties(my_lib PROPERTIES CUDA_ARCHITECTURES 87
 target_include_directories(my_lib
                            PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_link_libraries(my_lib PUBLIC ${CUDA_LIBRARIES})
+
+# OpenMP
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+  target_link_libraries(my_lib PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+# Set OpenMP compiler flag for host code set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}
+# ${OpenMP_CXX_FLAGS}")
+
+# Add CUDA-specific flags
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fopenmp")
