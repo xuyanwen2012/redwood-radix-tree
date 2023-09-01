@@ -20,9 +20,6 @@ namespace cg = cooperative_groups;
 __global__ void ComputeMortonKernel(Eigen::Vector3f* inputs,
                                     Code_t* morton_keys, const int n,
                                     const float min_coord, const float range) {
-  // auto cta = cg::this_thread_block();
-  // const auto tid = cta.thread_rank();
-
   const auto i = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (i < n) {
@@ -53,8 +50,20 @@ __host__ __device__ bool CompareAxis(const Eigen::Vector3f& a,
     return a.x() < b.x();
   } else if constexpr (Axis == 1) {
     return a.y() < b.y();
-  } else {
-    return a.z() < b.z();
+  }
+  return a.z() < b.z();
+}
+
+__global__ void CalculateEdgeCountKernel(int* edge_count,
+                                         const brt::InnerNodes* inners,
+                                         const int num_brt_nodes) {
+  const auto i = blockIdx.x * blockDim.x + threadIdx.x;
+
+  // root has no parent, so don't do for index 0
+  if (i > 0 && i < num_brt_nodes) {
+    const int my_depth = inners[i].delta_node / 3;
+    const int parent_depth = inners[inners[i].parent].delta_node / 3;
+    edge_count[i] = my_depth - parent_depth;
   }
 }
 
@@ -103,19 +112,14 @@ int main() {
   std::cout << "Max: " << max_coord << "\n";
   std::cout << "Range: " << range << "\n";
 
-  // std::cout << "Peek Input\n";
-  // for (int i = 0; i < 5; ++i) {
-  //   std::cout << u_inputs[i].transpose() << '\n';
-  // }
-
   Code_t* u_morton_keys = nullptr;
   HANDLE_ERROR(cudaMallocManaged(&u_morton_keys, input_size * sizeof(Code_t)));
 
-  redwood::UsmVector<Code_t> sorted_morton_keys(input_size);
+  redwood::UsmVector<Code_t> u_sorted_morton_keys(input_size);
 
   // [Step 1] Compute Morton Codes
   TimeTask("Compute Morton Codes", [&] {
-    const int block_size = 1024;
+    constexpr int block_size = 1024;
     const int num_blocks = (input_size + block_size - 1) / block_size;
 
     ComputeMortonKernel<<<num_blocks, block_size>>>(
@@ -123,49 +127,47 @@ int main() {
     HANDLE_ERROR(cudaDeviceSynchronize());
   });
 
-  const auto num_keys = input_size;
-
   // no longer need inputs
   u_inputs.clear();
 
   // [Step 2] Sort Morton Codes by Key
-
-  cub::CachingDeviceAllocator g_allocator(
-      true);  // Enable CUB's caching allocator
-  void* d_temp_storage = nullptr;
-  size_t temp_storage_bytes = 0;
+  // Enable CUB's caching allocator
+  cub::CachingDeviceAllocator g_allocator(true);
 
   TimeTask("Sort Morton", [&] {
+    void* d_temp_storage = nullptr;
+    size_t temp_storage_bytes = 0;
     HANDLE_ERROR(cub::DeviceRadixSort::SortKeys(
         d_temp_storage, temp_storage_bytes, u_morton_keys,
-        sorted_morton_keys.data(), num_keys));
+        u_sorted_morton_keys.data(), input_size));
 
     HANDLE_ERROR(cudaMalloc(&d_temp_storage, temp_storage_bytes));
 
     HANDLE_ERROR(cub::DeviceRadixSort::SortKeys(
         d_temp_storage, temp_storage_bytes, u_morton_keys,
-        sorted_morton_keys.data(), num_keys));
+        u_sorted_morton_keys.data(), input_size));
     HANDLE_ERROR(cudaDeviceSynchronize());
   });
 
-  cudaFree(u_morton_keys);
+  // no longer need unsorted morton keys
+  HANDLE_ERROR(cudaFree(u_morton_keys));
+
   // [Step 3-4] Handle Duplicates
   TimeTask("Handle Duplicates", [&] {
-    sorted_morton_keys.erase(
-        std::unique(sorted_morton_keys.begin(), sorted_morton_keys.end()),
-        sorted_morton_keys.end());
+    u_sorted_morton_keys.erase(
+        std::unique(u_sorted_morton_keys.begin(), u_sorted_morton_keys.end()),
+        u_sorted_morton_keys.end());
   });
 
-  const auto num_unique_keys = sorted_morton_keys.size();
+  const auto num_unique_keys = u_sorted_morton_keys.size();
   std::cout << "Actual num keys: " << num_unique_keys << '\n';
 
-  const auto num_brt_nodes = num_unique_keys - 1;
-
   // [Step 5] Build Binary Radix Tree
+  const auto num_brt_nodes = num_unique_keys - 1;
   redwood::UsmVector<brt::InnerNodes> u_brt_nodes(num_brt_nodes);
 
   TimeTask("Build Binary Radix Tree", [&] {
-    ProcessInternalNodes(num_unique_keys, sorted_morton_keys.data(),
+    ProcessInternalNodes(num_unique_keys, u_sorted_morton_keys.data(),
                          u_brt_nodes.data());
   });
 
@@ -182,38 +184,67 @@ int main() {
 
   // [Step 6] Count edges
   redwood::UsmVector<int> u_edge_count(num_brt_nodes);
+
   TimeTask("Count Edges", [&] {
-    // Copy a "1" to the first element to account for the root
+    constexpr int block_size = 1024;
+    const int num_blocks = (input_size + block_size - 1) / block_size;
+
+    // the frist element is root
     u_edge_count[0] = 1;
-    oct::CalculateEdgeCount(u_edge_count.data(), u_brt_nodes.data(),
-                            num_brt_nodes);
+
+    CalculateEdgeCountKernel<<<num_blocks, block_size>>>(
+        u_edge_count.data(), u_brt_nodes.data(), num_brt_nodes);
+
+    HANDLE_ERROR(cudaDeviceSynchronize());
   });
 
-  // [Step 6.1] Prefix sum
+  // [Step 6.1] Compute Prefix Sum
   redwood::UsmVector<int> u_oc_node_offsets(num_brt_nodes + 1);
   TimeTask("Prefix Sum", [&] {
-    std::partial_sum(u_edge_count.begin(), u_edge_count.end(),
-                     u_oc_node_offsets.begin() + 1);
+    void* d_temp_storage = nullptr;
+    size_t temp_storage_bytes = 0;
+    cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes,
+                                  u_edge_count.data(),
+                                  u_oc_node_offsets.data() + 1, num_brt_nodes);
+
+    HANDLE_ERROR(cudaMalloc(&d_temp_storage, temp_storage_bytes));
+
+    cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes,
+                                  u_edge_count.data(),
+                                  u_oc_node_offsets.data() + 1, num_brt_nodes);
+    HANDLE_ERROR(cudaDeviceSynchronize());
+
+    // To turn this prefix sum array into a range array, we need to shift it
     u_oc_node_offsets[0] = 0;
   });
 
   // [Step 6.2] Allocate BH nodes
   const int num_oc_nodes = u_oc_node_offsets.back();
   const int root_level = u_brt_nodes[0].delta_node / 3;
-  const Code_t root_prefix = u_morton_keys[0] >> (kCodeLen - (3 * root_level));
-  redwood::UsmVector<oct::OctNode> bh_nodes(num_oc_nodes);
+  const Code_t root_prefix =
+      u_sorted_morton_keys[0] >> (kCodeLen - (3 * root_level));
+  redwood::UsmVector<oct::OctNode> u_bh_nodes(num_oc_nodes);
 
   // Debug print
   std::cout << "Num Unique Morton Keys: " << num_unique_keys << "\n";
   std::cout << "Num Radix Nodes: " << num_brt_nodes << "\n";
   std::cout << "Num Octree Nodes: " << num_oc_nodes << "\n";
 
-  // // [Step 7] Create unlinked BH nodes
-  // TimeTask("Make Unlinked BH nodes", [&] {
-  //   MakeNodes(bh_nodes.data(), u_oc_node_offsets.data(), u_edge_count.data(),
-  //             u_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes,
-  //             range);
-  // });
+  // [Step 7] Create unlinked BH nodes
+  TimeTask("Make Unlinked BH nodes", [&] {
+    MakeNodes(u_bh_nodes.data(), u_oc_node_offsets.data(), u_edge_count.data(),
+              u_sorted_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes,
+              range);
+  });
+
+  // [Step 8] Linking BH nodes
+  TimeTask("Link BH nodes", [&] {
+    LinkNodes(u_bh_nodes.data(), u_oc_node_offsets.data(), u_edge_count.data(),
+              u_sorted_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes);
+  });
+
+  CheckTree(root_prefix, root_level * 3, u_bh_nodes.data(), 0,
+            u_sorted_morton_keys.data());
 
   return 0;
 }
