@@ -71,11 +71,13 @@ void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
  * @param morton_keys: sorted morton keys
  * @param inners: binary radix tree nodes
  * @param num_brt_nodes: number of binary radix tree nodes
+ * @param min_cord: minimum coordinate of the entire octree, default 0.0f
  * @param tree_range: range of the entire octree, default 1.0f
  */
 void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
                const Code_t* morton_keys, const brt::InnerNodes* inners,
-               int num_brt_nodes, float tree_range = 1.0f);
+               int num_brt_nodes, float min_cord = 0.0f,
+               float tree_range = 1.0f);
 
 /**
  * @brief Link the octree nodes together.

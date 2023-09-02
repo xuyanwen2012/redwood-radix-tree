@@ -3,7 +3,9 @@
 #include <iostream>
 
 #include "BinaryRadixTree.hpp"
+#include "Morton.hpp"
 #include "Octree.hpp"
+#include "cuda/CudaUtils.cuh"
 
 constexpr bool kUsingCpu = true;
 
@@ -76,7 +78,7 @@ void CalculateEdgeCount(int* edge_count, const brt::InnerNodes* inners,
 __host__ __device__ void MakeNodesHelper(
     const int i, OctNode* nodes, const int* node_offsets, const int* edge_count,
     const Code_t* morton_keys, const brt::InnerNodes* inners,
-    const float tree_range, const int root_level) {
+    const float min_coord, const float tree_range, const int root_level) {
   int oct_idx = node_offsets[i];
   const int n_new_nodes = edge_count[i];
   for (int j = 0; j < n_new_nodes - 1; ++j) {
@@ -88,8 +90,8 @@ __host__ __device__ void MakeNodesHelper(
     nodes[parent].SetChild(oct_idx, child_idx);
 
     // calculate corner point (LSB have already been shifted off)
-    nodes[oct_idx].cornor =
-        CodeToPoint(node_prefix << (kCodeLen - (3 * level)));
+    nodes[oct_idx].cornor = CodeToPoint(node_prefix << (kCodeLen - (3 * level)),
+                                        min_coord, tree_range);
 
     // each cell is half the size of the level above it
     nodes[oct_idx].cell_size =
@@ -110,8 +112,8 @@ __host__ __device__ void MakeNodesHelper(
     const int child_idx = static_cast<int>(top_node_prefix & 0b111);
 
     nodes[oct_parent].SetChild(oct_idx, child_idx);
-    nodes[oct_idx].cornor =
-        CodeToPoint(top_node_prefix << (kCodeLen - (3 * top_level)));
+    nodes[oct_idx].cornor = CodeToPoint(
+        top_node_prefix << (kCodeLen - (3 * top_level)), min_coord, tree_range);
     nodes[oct_idx].cell_size =
         tree_range / static_cast<float>(1 << (top_level - root_level));
   }
@@ -121,42 +123,45 @@ __global__ void MakeNodesKernel(OctNode* nodes, const int* node_offsets,
                                 const int* edge_count,
                                 const Code_t* morton_keys,
                                 const brt::InnerNodes* inners,
-                                const int num_brt_nodes, const float tree_range,
-                                const int root_level) {
+                                const int num_brt_nodes, const float min_coord,
+                                const float tree_range, const int root_level) {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i > 0 && i < num_brt_nodes) {
     MakeNodesHelper(i, nodes, node_offsets, edge_count, morton_keys, inners,
-                    tree_range, root_level);
+                    min_coord, tree_range, root_level);
   }
 }
 
 void MakeNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
                const Code_t* morton_keys, const brt::InnerNodes* inners,
-               const int num_brt_nodes, const float tree_range) {
+               const int num_brt_nodes, const float min_coord,
+               const float tree_range) {
   // the root doesn't represent level 0 of the "entire" octree
   const int root_level = inners[0].delta_node / 3;
   const Code_t root_prefix = morton_keys[0] >> (kCodeLen - (root_level * 3));
 
-  nodes[0].cornor = CodeToPoint(root_prefix << (kCodeLen - (root_level * 3)));
+  nodes[0].cornor = CodeToPoint(root_prefix << (kCodeLen - (root_level * 3)),
+                                min_coord, tree_range);
   nodes[0].cell_size = tree_range;
 
-  if constexpr (kUsingCpu) {
-// skipping root
-#pragma omp parallel for
-    for (int i = 1; i < num_brt_nodes; ++i) {
-      MakeNodesHelper(i, nodes, node_offsets, edge_count, morton_keys, inners,
-                      tree_range, root_level);
-    }
-  } else {
-    const int threads_per_block = 1024;
-    const int num_blocks = (num_brt_nodes + threads_per_block - 1) /
-                           threads_per_block;  // round up
+  //   if constexpr (kUsingCpu) {
+  // // skipping root
+  // #pragma omp parallel for
+  //     for (int i = 1; i < num_brt_nodes; ++i) {
+  //       MakeNodesHelper(i, nodes, node_offsets, edge_count, morton_keys,
+  //       inners,
+  //                       min_coord, tree_range, root_level);
+  //     }
+  //   } else {
+  const int threads_per_block = 1024;
+  const int num_blocks =
+      (num_brt_nodes + threads_per_block - 1) / threads_per_block;  // round up
 
-    MakeNodesKernel<<<num_blocks, threads_per_block>>>(
-        nodes, node_offsets, edge_count, morton_keys, inners, num_brt_nodes,
-        tree_range, root_level);
-    HANDLE_ERROR(cudaDeviceSynchronize());
-  }
+  MakeNodesKernel<<<num_blocks, threads_per_block>>>(
+      nodes, node_offsets, edge_count, morton_keys, inners, num_brt_nodes,
+      min_coord, tree_range, root_level);
+  HANDLE_ERROR(cudaDeviceSynchronize());
+  // }
 }
 
 __host__ __device__ void LinkNodesHelper(const int i, OctNode* nodes,
@@ -218,19 +223,20 @@ __global__ void LinkNodesKernel(OctNode* nodes, const int* node_offsets,
 void LinkNodes(OctNode* nodes, const int* node_offsets, const int* edge_count,
                const Code_t* morton_keys, const brt::InnerNodes* inners,
                const int num_brt_nodes) {
-  if constexpr (kUsingCpu) {
-#pragma omp parallel for
-    for (int i = 0; i < num_brt_nodes; ++i) {
-      LinkNodesHelper(i, nodes, node_offsets, edge_count, morton_keys, inners);
-    }
-  } else {
-    const int threads_per_block = 1024;
-    const int num_blocks = (num_brt_nodes + threads_per_block - 1) /
-                           threads_per_block;  // round up
-    LinkNodesKernel<<<num_blocks, threads_per_block>>>(
-        nodes, node_offsets, edge_count, morton_keys, inners, num_brt_nodes);
-    HANDLE_ERROR(cudaDeviceSynchronize());
-  }
+  //   if constexpr (kUsingCpu) {
+  // #pragma omp parallel for
+  //     for (int i = 0; i < num_brt_nodes; ++i) {
+  //       LinkNodesHelper(i, nodes, node_offsets, edge_count, morton_keys,
+  //       inners);
+  //     }
+  //   } else {
+  const int threads_per_block = 1024;
+  const int num_blocks =
+      (num_brt_nodes + threads_per_block - 1) / threads_per_block;  // round up
+  LinkNodesKernel<<<num_blocks, threads_per_block>>>(
+      nodes, node_offsets, edge_count, morton_keys, inners, num_brt_nodes);
+  HANDLE_ERROR(cudaDeviceSynchronize());
+  // }
 }
 
 void CheckTree(const Code_t prefix, const int code_len, const OctNode* nodes,

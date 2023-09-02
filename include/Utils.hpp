@@ -21,6 +21,12 @@
 #define _NODISCARD
 #endif  // _HAS_NODISCARD
 
+#ifdef CUDA_ARCH
+#define _HOST_DEVICE __host__ __device__
+#else
+#define _HOST_DEVICE
+#endif
+
 template <typename Func>
 void TimeTask(const std::string& task_name, Func&& f) {
   const auto t0 = std::chrono::high_resolution_clock::now();

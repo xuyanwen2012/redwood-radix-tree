@@ -4,17 +4,64 @@
 
 #include "BinaryRadixTree.hpp"
 #include "Morton.hpp"
+#include "cuda/CudaUtils.cuh"
 
 namespace cg = cooperative_groups;
 
+namespace math {
+template <typename T>
+__device__ __forceinline__ int sign(T val) {
+  return (T(0) < val) - (val < T(0));
+}
+
+template <typename T>
+__device__ __forceinline__ T min(const T& x, const T& y) {
+  return y ^ ((x ^ y) & -(x < y));
+}
+
+template <typename T>
+__device__ __forceinline__ T max(const T& x, const T& y) {
+  return x ^ ((x ^ y) & -(x < y));
+}
+
+template <typename T>
+__device__ __forceinline__ int divide_ceil(const T& x, const T& y) {
+  return (x + y - 1) / y;
+}
+
+/** Integer division by two, rounding up */
+template <typename T>
+__device__ __forceinline__ int divide2_ceil(const T& x) {
+  return (x + 1) >> 1;
+}
+}  // namespace math
+
+namespace node {
+
+template <typename T>
+__device__ __forceinline__ T make_leaf(const T& index) {
+  return index ^ ((-1 ^ index) & 1UL << (sizeof(T) * 8 - 1));
+}
+
+template <typename T>
+__device__ __forceinline__ T make_internal(const T& index) {
+  return index;
+}
+}  // namespace node
+
 namespace brt {
 
-_NODISCARD __device__ int Delta(const Code_t* morton_keys, const int i,
-                                const int j) {
+__device__ __forceinline__ int Delta(const Code_t* morton_keys, const int i,
+                                     const int j) {
   constexpr auto unused_bits = 1;
   const auto li = morton_keys[i];
   const auto lj = morton_keys[j];
   return __clzll(li ^ lj) - unused_bits;
+}
+
+__device__ int DeltaSafe(const int key_num, const Code_t* morton_keys,
+                         const int i, const int j) noexcept {
+  return (j < 0 || j >= key_num) ? -1 : Delta(morton_keys, i, j);
 }
 
 __device__ void ProcessInternalNodesHelper(const int key_num,
@@ -87,15 +134,12 @@ __global__ void ProcessInternalNodesKernel(const int key_num,
 
 void ProcessInternalNodes(const int key_num, const Code_t* morton_keys,
                           InnerNodes* brt_nodes) {
-  if constexpr (false) {
-  } else {
-    const int input_size = key_num;
-    const int block_size = 1024;
-    const int num_blocks = (input_size + block_size - 1) / block_size;
-    ProcessInternalNodesKernel<<<num_blocks, block_size>>>(
-        input_size, morton_keys, brt_nodes);
-    HANDLE_ERROR(cudaDeviceSynchronize());
-  }
+  const int input_size = key_num;
+  const int block_size = 1024;
+  const int num_blocks = (input_size + block_size - 1) / block_size;
+  ProcessInternalNodesKernel<<<num_blocks, block_size>>>(
+      input_size, morton_keys, brt_nodes);
+  HANDLE_ERROR(cudaDeviceSynchronize());
 }
 
 }  // namespace brt
