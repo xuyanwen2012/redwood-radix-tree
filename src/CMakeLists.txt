@@ -13,8 +13,7 @@ target_sources(
 
 target_include_directories(
   my_lib
-  PUBLIC # ${CMAKE_SOURCE_DIR}/extern/libmorton/include
-         ${CMAKE_SOURCE_DIR}/extern/cxxopts/include
+  PUBLIC ${CMAKE_SOURCE_DIR}/extern/cxxopts/include
   PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_features(my_lib PUBLIC cxx_std_14)
@@ -24,11 +23,11 @@ find_package(Eigen3 REQUIRED)
 target_include_directories(my_lib PUBLIC ${EIGEN3_INCLUDE_DIR})
 message(STATUS "Eigen3 version: ${Eigen3_VERSION}")
 
-# CUDA
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_75 --expt-relaxed-constexpr")
+# CUDA -arch=sm_75
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 
-set_target_properties(my_lib PROPERTIES CUDA_ARCHITECTURES 87
-                                        CUDA_SEPARABLE_COMPILATION ON)
+# CUDA_SEPARABLE_COMPILATION ON
+set_target_properties(my_lib PROPERTIES CUDA_ARCHITECTURES 87)
 
 target_include_directories(my_lib
                            PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
@@ -39,6 +38,3 @@ find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
   target_link_libraries(my_lib PUBLIC OpenMP::OpenMP_CXX)
 endif()
-
-# Add CUDA-specific flags set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler
-# -fopenmp")
