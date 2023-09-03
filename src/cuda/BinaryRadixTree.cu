@@ -3,7 +3,6 @@
 #include <device_launch_parameters.h>
 
 #include "BinaryRadixTree.hpp"
-#include "Morton.hpp"
 #include "cuda/CudaUtils.cuh"
 
 namespace cg = cooperative_groups;
@@ -37,7 +36,6 @@ __device__ __forceinline__ int divide2_ceil(const T& x) {
 }  // namespace math
 
 namespace node {
-
 template <typename T>
 __device__ __forceinline__ T make_leaf(const T& index) {
   return index ^ ((-1 ^ index) & 1UL << (sizeof(T) * 8 - 1));
@@ -50,7 +48,6 @@ __device__ __forceinline__ T make_internal(const T& index) {
 }  // namespace node
 
 namespace brt {
-
 __device__ __forceinline__ int Delta(const Code_t* morton_keys, const int i,
                                      const int j) {
   constexpr auto unused_bits = 1;
@@ -102,8 +99,9 @@ __device__ void ProcessInternalNodesHelper(const int key_num,
 
   // // sanity check
   // assert(Delta(morton_keys, i, j) > delta_min);
-  // assert(Delta(morton_keys, split, split + 1) == Delta(morton_keys, i, j));
-  // assert(!(split < 0 || split + 1 >= key_num));
+  // assert(Delta(morton_keys, split, split + 1) ==
+  // Delta(morton_keys, i, j)); assert(!(split < 0 || split + 1 >=
+  // key_num));
 
   const int left{math::min<int>(i, j) == split
                      ? node::make_leaf<int>(split)
@@ -121,10 +119,10 @@ __device__ void ProcessInternalNodesHelper(const int key_num,
   if (math::max<int>(i, j) != split + 1) brt_nodes[right].parent = i;
 }
 
-__global__ void ProcessInternalNodesKernel(const int key_num,
-                                           const Code_t* morton_keys,
+__global__ void BuildBinaryRadixTreeKernel(const Code_t* morton_keys,
+                                           const size_t key_num,
                                            InnerNodes* brt_nodes) {
-  auto i = blockIdx.x * blockDim.x + threadIdx.x;
+  const auto i = blockIdx.x * blockDim.x + threadIdx.x;
 
   const auto num_brt_nodes = key_num - 1;
   if (i < num_brt_nodes) {
@@ -132,14 +130,16 @@ __global__ void ProcessInternalNodesKernel(const int key_num,
   }
 }
 
-void ProcessInternalNodes(const int key_num, const Code_t* morton_keys,
-                          InnerNodes* brt_nodes) {
-  const int input_size = key_num;
-  const int block_size = 1024;
-  const int num_blocks = (input_size + block_size - 1) / block_size;
-  ProcessInternalNodesKernel<<<num_blocks, block_size>>>(
-      input_size, morton_keys, brt_nodes);
+}  // namespace brt
+
+void BuildBinaryRadixTree(const Code_t* sorted_morton,
+                          const size_t num_unique_keys,
+                          brt::InnerNodes* brt_nodes) {
+  const auto num_brt_nodes = num_unique_keys - 1;
+
+  const auto num_blocks =
+      (num_brt_nodes + kThreadsPerBlock - 1) / kThreadsPerBlock;
+  BuildBinaryRadixTreeKernel<<<num_blocks, kThreadsPerBlock>>>(
+      sorted_morton, num_unique_keys, brt_nodes);
   HANDLE_ERROR(cudaDeviceSynchronize());
 }
-
-}  // namespace brt
