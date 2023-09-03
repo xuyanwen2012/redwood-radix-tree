@@ -41,4 +41,4 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # Add CUDA-specific flags
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fopenmp")
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fopenmp")

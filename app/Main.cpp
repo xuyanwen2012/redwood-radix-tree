@@ -78,12 +78,24 @@ int main() {
                        min_coord, range);
   });
 
+  // Peek 10 Morton codes
+  std::cout << "Morton Codes\n";
+  for (int i = 0; i < 10; ++i) {
+    std::cout << i << ": " << u_morton_keys[i] << "\n";
+  }
+
   u_inputs.clear();
 
   TimeTask("[Step 2] Sort Morton Codes", [&] {
     SortMortonCodes(u_morton_keys.data(), u_sorted_morton_keys.data(),
                     input_size);
   });
+
+  // Peek 10 sorted Morton codes
+  std::cout << "Sorted Morton Codes\n";
+  for (int i = 0; i < 10; ++i) {
+    std::cout << i << ": " << u_sorted_morton_keys[i] << "\n";
+  }
 
   u_morton_keys.clear();
 
@@ -102,6 +114,12 @@ int main() {
     ProcessInternalNodes(num_unique_keys, u_sorted_morton_keys.data(),
                          u_brt_nodes.data());
   });
+
+  // Peek 10 BRT nodes
+  std::cout << "BRT Nodes\n";
+  for (int i = 0; i < 10; ++i) {
+    std::cout << i << ": " << u_brt_nodes[i].delta_node << "\n";
+  }
 
   if (false) {
     for (int i = 0; i < num_brt_nodes; ++i) {
@@ -122,11 +140,23 @@ int main() {
                             num_brt_nodes);
   });
 
+  // Peek 10 edge counts
+  std::cout << "Edge Counts\n";
+  for (int i = 0; i < 10; ++i) {
+    std::cout << i << ": " << u_edge_count[i] << "\n";
+  }
+
   // [Step 6.1] Compute Prefix Sum
   redwood::UsmVector<int> u_oc_node_offsets(num_brt_nodes + 1);
 
   TimeTask("[Step 6] Prefix Sum",
            [&] { ComputeRangeArray(u_edge_count, u_oc_node_offsets); });
+
+  // Peek 10 offsets
+  std::cout << "Offsets\n";
+  for (int i = 0; i < 10; ++i) {
+    std::cout << i << ": " << u_oc_node_offsets[i] << "\n";
+  }
 
   // [Step 6.2] Allocate BH nodes
   const int num_oc_nodes = u_oc_node_offsets.back();
@@ -145,16 +175,18 @@ int main() {
   //   // std::cout << u_bh_nodes[i].code << "\n";
   // }
 
-
-  // TimeTask("[Step 7] Make Unlinked BH nodes", [&] {
-  //   MakeNodes(u_bh_nodes.data(), u_oc_node_offsets.data(), u_edge_count.data(),
-  //             u_sorted_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes,
-  //             range);
-  // });
+  TimeTask("[Step 7] Make Unlinked BH nodes", [&] {
+    MakeNodes(u_bh_nodes.data(), u_oc_node_offsets.data(), u_edge_count.data(),
+              u_sorted_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes,
+              // min_coord, 
+              range);
+  });
 
   // TimeTask("[Step 8] Link BH nodes", [&] {
-  //   LinkNodes(u_bh_nodes.data(), u_oc_node_offsets.data(), u_edge_count.data(),
-  //             u_sorted_morton_keys.data(), u_brt_nodes.data(), num_brt_nodes);
+  //   LinkNodes(u_bh_nodes.data(), u_oc_node_offsets.data(),
+  //   u_edge_count.data(),
+  //             u_sorted_morton_keys.data(), u_brt_nodes.data(),
+  //             num_brt_nodes);
   // });
 
   // CheckTree(root_prefix, root_level * 3, u_bh_nodes.data(), 0,
