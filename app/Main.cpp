@@ -98,6 +98,11 @@ int main() {
                          u_brt_nodes.data());
   });
 
+  for (int i = 0; i < num_brt_nodes; ++i) {
+    std::cout << "Node " << i << ": " << u_brt_nodes[i].delta_node << ", "
+              << u_brt_nodes[i].left << ", " << u_brt_nodes[i].right << "\n";
+  }
+
   redwood::UsmVector<int> u_edge_count(num_brt_nodes);
   redwood::UsmVector<int> u_oc_node_offsets(num_brt_nodes + 1);
 
