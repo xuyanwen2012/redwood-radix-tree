@@ -93,5 +93,5 @@ void LinkOctreeNodes(oct::OctNode* nodes, const int* node_offsets,
  * @param oct_idx
  * @param codes
  */
-void CheckTree(const Code_t prefix, int code_len, const oct::OctNode* nodes,
+void CheckTree(Code_t prefix, int code_len, const oct::OctNode* nodes,
                int oct_idx, const Code_t* codes);
