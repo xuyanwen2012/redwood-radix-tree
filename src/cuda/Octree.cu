@@ -190,3 +190,22 @@ void LinkOctreeNodes(oct::OctNode* nodes, const int* node_offsets,
       nodes, node_offsets, edge_count, sorted_morton, brt_nodes, num_brt_nodes);
   HANDLE_ERROR(cudaDeviceSynchronize());
 }
+
+void CheckTree(const Code_t prefix, const int code_len,
+               const oct::OctNode* nodes, const int oct_idx,
+               const Code_t* codes) {
+  const auto& node = nodes[oct_idx];
+  for (int i = 0; i < 8; ++i) {
+    Code_t new_pref = (prefix << 3) | i;
+    if (node.child_node_mask & (1 << i)) {
+      CheckTree(new_pref, code_len + 3, nodes, node.children[i], codes);
+    }
+    if (node.child_leaf_mask & (1 << i)) {
+      Code_t leaf_prefix =
+          codes[node.children[i]] >> (kCodeLen - (code_len + 3));
+      if (new_pref != leaf_prefix) {
+        printf("oh no...\n");
+      }
+    }
+  }
+}
