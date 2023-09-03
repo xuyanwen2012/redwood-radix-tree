@@ -7,7 +7,7 @@ file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/include/*.hpp")
 
 target_sources(
   my_lib
-  PRIVATE cuda/BinaryRadixTree.cu cuda/Morton.cu cuda/Octree.cu
+  PRIVATE cuda/BinaryRadixTree.cu cuda/MortonKernels.cu cuda/Octree.cu
           cuda/PrefixSum.cu cuda/UnifiedSharedMemory.cu
   PUBLIC ${HEADER_LIST})
 
@@ -40,5 +40,5 @@ if(OpenMP_CXX_FOUND)
   target_link_libraries(my_lib PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
-# Add CUDA-specific flags
-# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fopenmp")
+# Add CUDA-specific flags set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler
+# -fopenmp")

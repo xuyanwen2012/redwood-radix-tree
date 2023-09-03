@@ -14,3 +14,5 @@ static void handle_error(const cudaError_t err, const char *file,
 }
 
 #define HANDLE_ERROR(err) (handle_error(err, __FILE__, __LINE__))
+
+constexpr int kThreadsPerBlock = 1024;
