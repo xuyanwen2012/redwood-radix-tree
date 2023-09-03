@@ -23,11 +23,18 @@ find_package(Eigen3 REQUIRED)
 target_include_directories(my_lib PUBLIC ${EIGEN3_INCLUDE_DIR})
 message(STATUS "Eigen3 version: ${Eigen3_VERSION}")
 
-# CUDA -arch=sm_75
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
+# CUDA -arch=sm_75 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}
+# --expt-relaxed-constexpr")
 
-# CUDA_SEPARABLE_COMPILATION ON
+target_compile_options(my_lib PRIVATE --expt-relaxed-constexpr)
+
 set_target_properties(my_lib PROPERTIES CUDA_ARCHITECTURES 87)
+
+if(NOT WIN32)
+  # Currently there is a bug causing linker error on Windows if separable
+  # compilation is enabled
+  set_target_properties(my_lib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+endif()
 
 target_include_directories(my_lib
                            PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
