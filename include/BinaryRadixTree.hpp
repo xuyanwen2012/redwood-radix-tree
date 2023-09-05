@@ -5,7 +5,6 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define CLZ(x) __builtin_clzll(x)
 #elif defined(__CUDACC__)
-// #include <cuda_runtime.h>
 #define CLZ(x) __clzll(x)
 #elif defined(_MSC_VER)
 #include <intrin.h>
